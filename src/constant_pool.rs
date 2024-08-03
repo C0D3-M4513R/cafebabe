@@ -71,7 +71,7 @@ impl RwLockDeref for RwLock<ConstantPoolRef> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ReferenceKind {
     GetField,
     GetStatic,
@@ -758,7 +758,7 @@ pub(crate) fn read_cp_packageinfo(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NameAndType {
     pub name: Arc<str>,
     pub descriptor: Arc<str>,
@@ -780,7 +780,7 @@ pub(crate) fn read_cp_nameandtype_opt(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum LiteralConstant {
     Integer(i32),
     Float(f32),
@@ -854,7 +854,7 @@ pub(crate) fn read_cp_double(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemberRef {
     pub class_name: Arc<str>,
     pub name_and_type: NameAndType,
@@ -881,7 +881,7 @@ pub(crate) fn read_cp_memberref(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InvokeDynamic {
     pub attr_index: u16,
     pub name_and_type: NameAndType,
@@ -902,13 +902,13 @@ pub(crate) fn read_cp_invokedynamic(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Dynamic {
     pub attr_index: u16,
     pub name_and_type: NameAndType,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Loadable {
     LiteralConstant(LiteralConstant),
     ClassInfo(Arc<str>),
@@ -950,14 +950,14 @@ pub(crate) fn get_cp_loadable(
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MemberKind {
     Field,
     Method,
     InterfaceMethod,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MethodHandle {
     pub kind: ReferenceKind,
     pub class_name: Arc<str>,
@@ -1007,7 +1007,7 @@ pub(crate) fn read_cp_methodhandle(
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum BootstrapArgument {
     LiteralConstant(LiteralConstant),
     ClassInfo(Arc<str>),

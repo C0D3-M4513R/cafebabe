@@ -133,12 +133,12 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct FieldInfo {
     pub access_flags: FieldAccessFlags,
     pub name: Arc<str>,
     pub descriptor: FieldType,
-    pub attributes: Vec<AttributeInfo>,
+    pub attributes: Arc<[AttributeInfo]>,
 }
 
 fn read_fields(
@@ -174,7 +174,7 @@ fn read_fields(
             access_flags,
             name,
             descriptor,
-            attributes,
+            attributes: Arc::from(attributes),
         });
     }
     Ok(fields)
@@ -197,7 +197,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct MethodInfo {
     pub access_flags: MethodAccessFlags,
     pub name: Arc<str>,
@@ -301,7 +301,7 @@ fn validate_bootstrap_methods(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ClassFile {
     pub major_version: u16,
     pub minor_version: u16,

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::ParseError;
 
 /// MethodDescriptor as described in section 4.3.3 of the [JVM 18 specification](https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-4.html#jvms-4.3.3)
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MethodDescriptor {
     pub parameters: Vec<FieldType>,
     pub result: ReturnDescriptor,
@@ -58,7 +58,7 @@ impl fmt::Display for MethodDescriptor {
     }
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Ty {
     Base(BaseType),
     Object(Arc<str>),
@@ -74,7 +74,7 @@ impl fmt::Display for Ty {
 }
 
 /// FieldType as described in section 4.3.2 of the [JVM 18 specification](https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-4.html#jvms-4.3.2)
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FieldType {
     Ty(Ty),
     Array { dimensions: usize, ty: Ty },
@@ -193,7 +193,7 @@ impl fmt::Display for BaseType {
 }
 
 /// ReturnDescriptor
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ReturnDescriptor {
     Return(FieldType),
     Void,

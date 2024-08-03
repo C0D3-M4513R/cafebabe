@@ -12,13 +12,13 @@ use crate::{read_u1, read_u2, read_u4, ParseError};
 
 pub type JumpOffset = i32;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LookupTable {
     pub default: JumpOffset,
     pub match_offsets: Vec<(i32, JumpOffset)>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct RangeTable {
     pub default: JumpOffset,
     pub low: i32,
@@ -38,7 +38,7 @@ pub enum PrimitiveArrayType {
     Long,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum Opcode {
     Aaload,
     Aastore,
@@ -204,13 +204,13 @@ pub enum Opcode {
     Tableswitch(RangeTable),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct ByteCode {
     /// This contains pairs of (offset, opcode) where offset is the offset of the start
     /// of the opcode in bytes from the beginning of the data section of the Code attribute.
     /// This array will always be sorted in increasing offset order. The `get_opcode_index`
     /// function can be used to look up the vector index for a particular offset.
-    pub opcodes: Vec<(usize, Opcode)>,
+    pub opcodes: Arc<[(usize, Opcode)]>,
 }
 
 impl ByteCode {
@@ -219,7 +219,7 @@ impl ByteCode {
         pool: &[Arc<ConstantPoolEntry>],
     ) -> Result<Self, ParseError> {
         let bytecode = Self {
-            opcodes: read_opcodes(code, pool)?,
+            opcodes: Arc::from(read_opcodes(code, pool)?),
         };
         bytecode.validate_jumps()?;
         Ok(bytecode)
@@ -301,7 +301,7 @@ impl ByteCode {
     }
 
     fn validate_jumps(&self) -> Result<(), ParseError> {
-        for (offset, opcode) in &self.opcodes {
+        for (offset, opcode) in self.opcodes.iter() {
             self.validate_opcode_jumps(offset, opcode)
                 .map_err(|e| err!(e, "opcode at offset {}", offset))?;
         }
@@ -704,18 +704,18 @@ mod tests {
 
     #[test]
     fn test_get_opcode() {
-        let bytecode = ByteCode { opcodes: vec![] };
+        let bytecode = ByteCode { opcodes: Arc::new([]) };
         assert_eq!(bytecode.get_opcode_index(0), None);
         assert_eq!(bytecode.get_opcode_index(1), None);
 
         let bytecode = ByteCode {
-            opcodes: vec![(0, Opcode::Nop)],
+            opcodes: Arc::new([(0, Opcode::Nop)]),
         };
         assert_eq!(bytecode.get_opcode_index(0), Some(0));
         assert_eq!(bytecode.get_opcode_index(1), None);
 
         let bytecode = ByteCode {
-            opcodes: vec![(0, Opcode::Nop), (3, Opcode::Nop)],
+            opcodes: Arc::new([(0, Opcode::Nop), (3, Opcode::Nop)]),
         };
         assert_eq!(bytecode.get_opcode_index(0), Some(0));
         assert_eq!(bytecode.get_opcode_index(1), None);
@@ -724,7 +724,7 @@ mod tests {
         assert_eq!(bytecode.get_opcode_index(4), None);
 
         let bytecode = ByteCode {
-            opcodes: vec![(0, Opcode::Nop), (3, Opcode::Nop), (4, Opcode::Nop)],
+            opcodes: Arc::new([(0, Opcode::Nop), (3, Opcode::Nop), (4, Opcode::Nop)]),
         };
         assert_eq!(bytecode.get_opcode_index(0), Some(0));
         assert_eq!(bytecode.get_opcode_index(1), None);

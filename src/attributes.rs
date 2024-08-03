@@ -15,7 +15,7 @@ use crate::descriptor::FieldType;
 use crate::names::{is_return_descriptor, is_unqualified_name};
 use crate::{read_u1, read_u2, read_u4, AccessFlags, ParseError, ParseOptions};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ExceptionTableEntry {
     pub start_pc: u16,
     pub end_pc: u16,
@@ -23,17 +23,17 @@ pub struct ExceptionTableEntry {
     pub catch_type: Option<Arc<str>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct CodeData {
     pub max_stack: u16,
     pub max_locals: u16,
     pub code: Arc<[u8]>,
     pub bytecode: Option<ByteCode>,
-    pub exception_table: Vec<ExceptionTableEntry>,
-    pub attributes: Vec<AttributeInfo>,
+    pub exception_table: Arc<[ExceptionTableEntry]>,
+    pub attributes: Arc<[AttributeInfo]>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum VerificationType {
     Top,
     Integer,
@@ -46,7 +46,7 @@ pub enum VerificationType {
     Object { class_name: Arc<str> },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StackMapEntry {
     Same {
         offset_delta: u16,
@@ -85,7 +85,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InnerClassEntry {
     pub inner_class_info: Arc<str>,
     pub outer_class_info: Option<Arc<str>>,
@@ -93,13 +93,13 @@ pub struct InnerClassEntry {
     pub access_flags: InnerClassAccessFlags,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LineNumberEntry {
     pub start_pc: u16,
     pub line_number: u16,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVariableEntry {
     pub start_pc: u16,
     pub length: u16,
@@ -108,7 +108,7 @@ pub struct LocalVariableEntry {
     pub index: u16,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LocalVariableTypeEntry {
     pub start_pc: u16,
     pub length: u16,
@@ -117,7 +117,7 @@ pub struct LocalVariableTypeEntry {
     pub index: u16,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum AnnotationElementValue {
     ByteConstant(i32),
     CharConstant(i32),
@@ -139,31 +139,31 @@ pub enum AnnotationElementValue {
     ArrayValue(Vec<AnnotationElementValue>),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct AnnotationElement {
     pub name: Arc<str>,
     pub value: AnnotationElementValue,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct Annotation {
     pub type_descriptor: FieldType,
     pub elements: Vec<AnnotationElement>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct ParameterAnnotation {
     pub annotations: Vec<Annotation>,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TypeAnnotationLocalVarTargetEntry {
     pub start_pc: u16,
     pub length: u16,
     pub index: u16,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TypeAnnotationTarget {
     TypeParameter {
         index: u8,
@@ -195,7 +195,7 @@ pub enum TypeAnnotationTarget {
     },
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TypeAnnotationTargetPathKind {
     DeeperArray,
     DeeperNested,
@@ -203,20 +203,20 @@ pub enum TypeAnnotationTargetPathKind {
     TypeArgument,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TypeAnnotationTargetPathEntry {
     pub path_kind: TypeAnnotationTargetPathKind,
     pub argument_index: u8,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct TypeAnnotation {
     pub target_type: TypeAnnotationTarget,
     pub target_path: Vec<TypeAnnotationTargetPathEntry>,
     pub annotation: Annotation,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct BootstrapMethodEntry {
     pub method: MethodHandle,
     pub arguments: Vec<BootstrapArgument>,
@@ -230,7 +230,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MethodParameterEntry {
     pub name: Option<Arc<str>>,
     pub access_flags: MethodParameterAccessFlags,
@@ -253,7 +253,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModuleRequireEntry {
     pub name: Arc<str>,
     pub flags: ModuleRequiresFlags,
@@ -267,7 +267,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModuleExportsEntry {
     pub package_name: Arc<str>,
     pub flags: ModuleExportsFlags,
@@ -281,20 +281,20 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModuleOpensEntry {
     pub package_name: Arc<str>,
     pub flags: ModuleOpensFlags,
     pub opens_to: Vec<Arc<str>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModuleProvidesEntry {
     pub service_interface_name: Arc<str>,
     pub provides_with: Vec<Arc<str>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct ModuleData {
     pub name: Arc<str>,
     pub access_flags: ModuleAccessFlags,
@@ -306,20 +306,20 @@ pub struct ModuleData {
     pub provides: Vec<ModuleProvidesEntry>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct RecordComponentEntry {
     pub name: Arc<str>,
     pub descriptor: FieldType,
     pub attributes: Vec<AttributeInfo>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum AttributeData {
     ConstantValue(LiteralConstant),
     Code(CodeData),
-    StackMapTable(Vec<StackMapEntry>),
+    StackMapTable(Arc<[StackMapEntry]>),
     Exceptions(Vec<Arc<str>>),
-    InnerClasses(Vec<InnerClassEntry>),
+    InnerClasses(Arc<[InnerClassEntry]>),
     EnclosingMethod {
         class_name: Arc<str>,
         method: Option<NameAndType>,
@@ -351,7 +351,7 @@ pub enum AttributeData {
     Other(Arc<[u8]>),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct AttributeInfo {
     pub name: Arc<str>,
     pub data: AttributeData,
@@ -408,8 +408,8 @@ fn read_code_data(
         max_locals,
         code: Arc::from(code),
         bytecode,
-        exception_table,
-        attributes: code_attributes,
+        exception_table: Arc::from(exception_table),
+        attributes: Arc::from(code_attributes),
     })
 }
 
@@ -1083,7 +1083,7 @@ pub(crate) fn read_attributes(
             "StackMapTable" => {
                 let stackmaptable_data = read_stackmaptable_data(bytes, ix, pool)
                     .map_err(|e| err!(e, "StackMapTable attribute {}", i))?;
-                AttributeData::StackMapTable(stackmaptable_data)
+                AttributeData::StackMapTable(Arc::from(stackmaptable_data))
             }
             "Exceptions" => {
                 let exceptions_data = read_exceptions_data(bytes, ix, pool)
@@ -1093,7 +1093,7 @@ pub(crate) fn read_attributes(
             "InnerClasses" => {
                 let innerclasses_data = read_innerclasses_data(bytes, ix, pool)
                     .map_err(|e| err!(e, "InnerClasses attribute {}", i))?;
-                AttributeData::InnerClasses(innerclasses_data)
+                AttributeData::InnerClasses(Arc::from(innerclasses_data))
             }
             "EnclosingMethod" => {
                 ensure_length(length, 4).map_err(|e| err!(e, "EnclosingMethod attribute {}", i))?;
