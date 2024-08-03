@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
@@ -40,12 +39,12 @@ pub enum PrimitiveArrayType {
 }
 
 #[derive(Clone, Debug)]
-pub enum Opcode<'a> {
+pub enum Opcode {
     Aaload,
     Aastore,
     AconstNull,
     Aload(u16), // both wide and narrow
-    Anewarray(FieldType<'a>),
+    Anewarray(FieldType),
     Areturn,
     Arraylength,
     Astore(u16), // both wide and narrow
@@ -56,7 +55,7 @@ pub enum Opcode<'a> {
     Breakpoint,
     Caload,
     Castore,
-    Checkcast(FieldType<'a>),
+    Checkcast(FieldType),
     D2f,
     D2i,
     D2l,
@@ -100,8 +99,8 @@ pub enum Opcode<'a> {
     Freturn,
     Fstore(u16), // both wide and narrow
     Fsub,
-    Getfield(MemberRef<'a>),
-    Getstatic(MemberRef<'a>),
+    Getfield(MemberRef),
+    Getstatic(MemberRef),
     Goto(JumpOffset), // both wide and narrow
     I2b,
     I2c,
@@ -143,12 +142,12 @@ pub enum Opcode<'a> {
     Impdep2,
     Imul,
     Ineg,
-    Instanceof(FieldType<'a>),
-    Invokedynamic(InvokeDynamic<'a>),
-    Invokeinterface(MemberRef<'a>, u8),
-    Invokespecial(MemberRef<'a>),
-    Invokestatic(MemberRef<'a>),
-    Invokevirtual(MemberRef<'a>),
+    Instanceof(FieldType),
+    Invokedynamic(InvokeDynamic),
+    Invokeinterface(MemberRef, u8),
+    Invokespecial(MemberRef),
+    Invokestatic(MemberRef),
+    Invokevirtual(MemberRef),
     Ior,
     Irem,
     Ireturn,
@@ -169,9 +168,9 @@ pub enum Opcode<'a> {
     Lcmp,
     Lconst0,
     Lconst1,
-    Ldc(Loadable<'a>), // This doesn't validate the Loadable is not Long/Double types
-    LdcW(Loadable<'a>), // This doesn't validate the Loadable is not Long/Double types
-    Ldc2W(Loadable<'a>), // This doesn't validate the Loadable is only Long/Double types
+    Ldc(Loadable), // This doesn't validate the Loadable is not Long/Double types
+    LdcW(Loadable), // This doesn't validate the Loadable is not Long/Double types
+    Ldc2W(Loadable), // This doesn't validate the Loadable is only Long/Double types
     Ldiv,
     Lload(u16), // both wide and narrow
     Lmul,
@@ -188,14 +187,14 @@ pub enum Opcode<'a> {
     Lxor,
     Monitorenter,
     Monitorexit,
-    Multianewarray(FieldType<'a>, u8),
-    New(Cow<'a, str>),
+    Multianewarray(FieldType, u8),
+    New(Arc<str>),
     Newarray(PrimitiveArrayType),
     Nop,
     Pop,
     Pop2,
-    Putfield(MemberRef<'a>),
-    Putstatic(MemberRef<'a>),
+    Putfield(MemberRef),
+    Putstatic(MemberRef),
     Ret(u16), // both wide and narrow
     Return,
     Saload,
@@ -206,18 +205,18 @@ pub enum Opcode<'a> {
 }
 
 #[derive(Debug)]
-pub struct ByteCode<'a> {
+pub struct ByteCode {
     /// This contains pairs of (offset, opcode) where offset is the offset of the start
     /// of the opcode in bytes from the beginning of the data section of the Code attribute.
     /// This array will always be sorted in increasing offset order. The `get_opcode_index`
     /// function can be used to look up the vector index for a particular offset.
-    pub opcodes: Vec<(usize, Opcode<'a>)>,
+    pub opcodes: Vec<(usize, Opcode)>,
 }
 
-impl<'a> ByteCode<'a> {
+impl ByteCode {
     pub(crate) fn from(
-        code: &'a [u8],
-        pool: &[Arc<ConstantPoolEntry<'a>>],
+        code: & [u8],
+        pool: &[Arc<ConstantPoolEntry>],
     ) -> Result<Self, ParseError> {
         let bytecode = Self {
             opcodes: read_opcodes(code, pool)?,
@@ -310,10 +309,10 @@ impl<'a> ByteCode<'a> {
     }
 }
 
-fn read_opcodes<'a>(
-    code: &'a [u8],
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<(usize, Opcode<'a>)>, ParseError> {
+fn read_opcodes(
+    code: & [u8],
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<(usize, Opcode)>, ParseError> {
     let mut opcodes = Vec::new();
     let mut ix = 0;
     while ix < code.len() {

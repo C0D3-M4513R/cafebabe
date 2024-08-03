@@ -1,22 +1,22 @@
 #![allow(clippy::ptr_arg)]
 
 use std::{
-    borrow::Cow,
     fmt::{self, Write},
     str::CharIndices,
 };
+use std::sync::Arc;
 
 use crate::ParseError;
 
 /// MethodDescriptor as described in section 4.3.3 of the [JVM 18 specification](https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-4.html#jvms-4.3.3)
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct MethodDescriptor<'a> {
-    pub parameters: Vec<FieldType<'a>>,
-    pub result: ReturnDescriptor<'a>,
+pub struct MethodDescriptor {
+    pub parameters: Vec<FieldType>,
+    pub result: ReturnDescriptor,
 }
 
-impl<'a> MethodDescriptor<'a> {
-    pub(crate) fn parse(chars: &Cow<'a, str>) -> Result<Self, ParseError> {
+impl MethodDescriptor {
+    pub(crate) fn parse(chars: &Arc<str>) -> Result<Self, ParseError> {
         let mut chars_idx = chars.char_indices();
         match chars_idx.next().map(|(_, ch)| ch) {
             Some('(') => (),
@@ -46,7 +46,7 @@ impl<'a> MethodDescriptor<'a> {
     }
 }
 
-impl<'a> fmt::Display for MethodDescriptor<'a> {
+impl fmt::Display for MethodDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_char('(')?;
 
@@ -59,12 +59,12 @@ impl<'a> fmt::Display for MethodDescriptor<'a> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum Ty<'a> {
+pub enum Ty {
     Base(BaseType),
-    Object(Cow<'a, str>),
+    Object(Arc<str>),
 }
 
-impl<'a> fmt::Display for Ty<'a> {
+impl fmt::Display for Ty {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             Self::Base(base) => write!(f, "{}", base),
@@ -75,19 +75,19 @@ impl<'a> fmt::Display for Ty<'a> {
 
 /// FieldType as described in section 4.3.2 of the [JVM 18 specification](https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-4.html#jvms-4.3.2)
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum FieldType<'a> {
-    Ty(Ty<'a>),
-    Array { dimensions: usize, ty: Ty<'a> },
+pub enum FieldType {
+    Ty(Ty),
+    Array { dimensions: usize, ty: Ty },
 }
 
-impl<'a> FieldType<'a> {
-    pub(crate) fn parse(chars: &Cow<'a, str>) -> Result<Self, ParseError> {
+impl FieldType {
+    pub(crate) fn parse(chars: &Arc<str>) -> Result<Self, ParseError> {
         let mut chars_idx = chars.char_indices();
         Self::parse_from_chars_idx(chars, &mut chars_idx)
     }
 
     fn parse_from_chars_idx(
-        chars: &Cow<'a, str>,
+        chars: &Arc<str>,
         chars_idx: &mut CharIndices,
     ) -> Result<Self, ParseError> {
         let mut field = None::<Ty>;
@@ -127,7 +127,7 @@ impl<'a> FieldType<'a> {
     }
 }
 
-impl<'a> fmt::Display for FieldType<'a> {
+impl fmt::Display for FieldType {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             Self::Ty(ty) => write!(f, "{}", ty),
@@ -194,13 +194,13 @@ impl fmt::Display for BaseType {
 
 /// ReturnDescriptor
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum ReturnDescriptor<'a> {
-    Return(FieldType<'a>),
+pub enum ReturnDescriptor {
+    Return(FieldType),
     Void,
 }
 
-impl<'a> ReturnDescriptor<'a> {
-    fn parse(chars: &Cow<'a, str>, chars_idx: &mut CharIndices) -> Result<Self, ParseError> {
+impl ReturnDescriptor {
+    fn parse(chars: &Arc<str>, chars_idx: &mut CharIndices) -> Result<Self, ParseError> {
         // preserve the next item for use in the FieldType parser
         let result = match chars_idx.as_str().chars().next() {
             Some('V') => {
@@ -215,7 +215,7 @@ impl<'a> ReturnDescriptor<'a> {
     }
 }
 
-impl<'a> fmt::Display for ReturnDescriptor<'a> {
+impl fmt::Display for ReturnDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             Self::Void => f.write_char('V'),
@@ -225,10 +225,10 @@ impl<'a> fmt::Display for ReturnDescriptor<'a> {
 }
 
 /// Parses the object less the beginning L, e.g. this expects `java/lang/Object;`
-fn parse_object<'a>(
-    chars: &Cow<'a, str>,
+fn parse_object(
+    chars: &Arc<str>,
     chars_idx: &mut CharIndices,
-) -> Result<Cow<'a, str>, ParseError> {
+) -> Result<Arc<str>, ParseError> {
     let start_idx = chars_idx
         .next()
         .map(|ch_idx| ch_idx.0)
@@ -240,21 +240,10 @@ fn parse_object<'a>(
 
     // Because a Cow can be either Borrowed or Owned, we need to create an Owned String in the case that it's not a reference.
     // This should be rare, if ever.
-    let object = match *chars {
-        Cow::Borrowed(chars) => {
-            let object = chars
-                .get(start_idx..end_idx)
-                .ok_or_else(|| err!("Invalid object descriptor, out of bounds"))?;
-            Cow::Borrowed(object)
-        }
-        Cow::Owned(ref chars) => {
-            let object = chars
-                .get(start_idx..end_idx)
-                .ok_or_else(|| err!("Invalid object descriptor, out of bounds"))?;
-            Cow::Owned(object.to_string())
-        }
-    };
-
+    let object = chars
+        .get(start_idx..end_idx)
+        .ok_or_else(|| err!("Invalid object descriptor, out of bounds"))?;
+    let object = Arc::from(object);
     Ok(object)
 }
 
@@ -264,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_void_void() {
-        let chars = Cow::from("()V");
+        let chars = Arc::from("()V");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -276,7 +265,7 @@ mod tests {
 
     #[test]
     fn test_single_param() {
-        let chars = Cow::from("(J)V");
+        let chars = Arc::from("(J)V");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -292,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_basetype_return() {
-        let chars = Cow::from("()J");
+        let chars = Arc::from("()J");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -307,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_all_basetype_params() {
-        let chars = Cow::from("(BCDFIJSZ)V");
+        let chars = Arc::from("(BCDFIJSZ)V");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -351,7 +340,7 @@ mod tests {
 
     #[test]
     fn test_object_param() {
-        let chars = Cow::from("(Ljava/lang/Object;)V");
+        let chars = Arc::from("(Ljava/lang/Object;)V");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -359,7 +348,7 @@ mod tests {
 
         assert_eq!(
             parameters.next().unwrap(),
-            FieldType::Ty(Ty::Object(Cow::Borrowed("java/lang/Object")))
+            FieldType::Ty(Ty::Object(Arc::from("java/lang/Object")))
         );
         assert!(parameters.next().is_none());
         assert_eq!(result, ReturnDescriptor::Void);
@@ -367,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_owned_cow() {
-        let chars = Cow::from("(Ljava/lang/Object;)V".to_string());
+        let chars = Arc::from("(Ljava/lang/Object;)V".to_string());
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -375,7 +364,7 @@ mod tests {
 
         assert_eq!(
             parameters.next().unwrap(),
-            FieldType::Ty(Ty::Object(Cow::Borrowed("java/lang/Object")))
+            FieldType::Ty(Ty::Object(Arc::from("java/lang/Object")))
         );
         assert!(parameters.next().is_none());
         assert_eq!(result, ReturnDescriptor::Void);
@@ -383,7 +372,7 @@ mod tests {
 
     #[test]
     fn test_multi_object_param() {
-        let chars = Cow::from("(Ljava/lang/Object;Ljava/lang/String;)V");
+        let chars = Arc::from("(Ljava/lang/Object;Ljava/lang/String;)V");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -391,11 +380,11 @@ mod tests {
 
         assert_eq!(
             parameters.next().unwrap(),
-            FieldType::Ty(Ty::Object(Cow::Borrowed("java/lang/Object")))
+            FieldType::Ty(Ty::Object(Arc::from("java/lang/Object")))
         );
         assert_eq!(
             parameters.next().unwrap(),
-            FieldType::Ty(Ty::Object(Cow::Borrowed("java/lang/String")))
+            FieldType::Ty(Ty::Object(Arc::from("java/lang/String")))
         );
         assert!(parameters.next().is_none());
         assert_eq!(result, ReturnDescriptor::Void);
@@ -403,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_object_return() {
-        let chars = Cow::from("()Ljava/lang/Object;");
+        let chars = Arc::from("()Ljava/lang/Object;");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -412,13 +401,13 @@ mod tests {
         assert!(parameters.next().is_none());
         assert_eq!(
             result,
-            ReturnDescriptor::Return(FieldType::Ty(Ty::Object(Cow::Borrowed("java/lang/Object"))))
+            ReturnDescriptor::Return(FieldType::Ty(Ty::Object(Arc::from("java/lang/Object"))))
         );
     }
 
     #[test]
     fn test_array_basetype_param() {
-        let chars = Cow::from("([J)V");
+        let chars = Arc::from("([J)V");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -437,7 +426,7 @@ mod tests {
 
     #[test]
     fn test_multi_array_param() {
-        let chars = Cow::from("([[J)V");
+        let chars = Arc::from("([[J)V");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -456,7 +445,7 @@ mod tests {
 
     #[test]
     fn test_array_return() {
-        let chars = Cow::from("()[J");
+        let chars = Arc::from("()[J");
 
         let descriptor = MethodDescriptor::parse(&chars).unwrap();
         let mut parameters = descriptor.parameters.into_iter();
@@ -477,7 +466,7 @@ mod tests {
         let descriptor = MethodDescriptor {
             parameters: vec![
                 FieldType::Ty(Ty::Base(BaseType::Long)),
-                FieldType::Ty(Ty::Object(Cow::Borrowed("java/lang/Object"))),
+                FieldType::Ty(Ty::Object(Arc::from("java/lang/Object"))),
                 FieldType::Array {
                     dimensions: 2,
                     ty: Ty::Base(BaseType::Byte),
@@ -491,8 +480,8 @@ mod tests {
 
     #[test]
     fn test_max_array_depth() {
-        let chars_ok = Cow::from(format!("({}J)V", "[".repeat(255)));
-        let chars_bad = Cow::from(format!("({}J)V", "[".repeat(256)));
+        let chars_ok = Arc::from(format!("({}J)V", "[".repeat(255)));
+        let chars_bad = Arc::from(format!("({}J)V", "[".repeat(256)));
 
         assert!(MethodDescriptor::parse(&chars_ok).is_ok());
         assert!(MethodDescriptor::parse(&chars_bad).is_err());

@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -17,25 +16,25 @@ use crate::names::{is_return_descriptor, is_unqualified_name};
 use crate::{read_u1, read_u2, read_u4, AccessFlags, ParseError, ParseOptions};
 
 #[derive(Debug)]
-pub struct ExceptionTableEntry<'a> {
+pub struct ExceptionTableEntry {
     pub start_pc: u16,
     pub end_pc: u16,
     pub handler_pc: u16,
-    pub catch_type: Option<Cow<'a, str>>,
+    pub catch_type: Option<Arc<str>>,
 }
 
 #[derive(Debug)]
-pub struct CodeData<'a> {
+pub struct CodeData {
     pub max_stack: u16,
     pub max_locals: u16,
-    pub code: &'a [u8],
-    pub bytecode: Option<ByteCode<'a>>,
-    pub exception_table: Vec<ExceptionTableEntry<'a>>,
-    pub attributes: Vec<AttributeInfo<'a>>,
+    pub code: Arc<[u8]>,
+    pub bytecode: Option<ByteCode>,
+    pub exception_table: Vec<ExceptionTableEntry>,
+    pub attributes: Vec<AttributeInfo>,
 }
 
 #[derive(Debug)]
-pub enum VerificationType<'a> {
+pub enum VerificationType {
     Top,
     Integer,
     Float,
@@ -44,17 +43,17 @@ pub enum VerificationType<'a> {
     Null,
     UninitializedThis,
     Uninitialized { code_offset: u16 },
-    Object { class_name: Cow<'a, str> },
+    Object { class_name: Arc<str> },
 }
 
 #[derive(Debug)]
-pub enum StackMapEntry<'a> {
+pub enum StackMapEntry {
     Same {
         offset_delta: u16,
     },
     SameLocals1StackItem {
         offset_delta: u16,
-        stack: VerificationType<'a>,
+        stack: VerificationType,
     },
     Chop {
         offset_delta: u16,
@@ -62,12 +61,12 @@ pub enum StackMapEntry<'a> {
     },
     Append {
         offset_delta: u16,
-        locals: Vec<VerificationType<'a>>,
+        locals: Vec<VerificationType>,
     },
     FullFrame {
         offset_delta: u16,
-        locals: Vec<VerificationType<'a>>,
-        stack: Vec<VerificationType<'a>>,
+        locals: Vec<VerificationType>,
+        stack: Vec<VerificationType>,
     },
 }
 
@@ -87,10 +86,10 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct InnerClassEntry<'a> {
-    pub inner_class_info: Cow<'a, str>,
-    pub outer_class_info: Option<Cow<'a, str>>,
-    pub inner_name: Option<Cow<'a, str>>,
+pub struct InnerClassEntry {
+    pub inner_class_info: Arc<str>,
+    pub outer_class_info: Option<Arc<str>>,
+    pub inner_name: Option<Arc<str>>,
     pub access_flags: InnerClassAccessFlags,
 }
 
@@ -101,25 +100,25 @@ pub struct LineNumberEntry {
 }
 
 #[derive(Debug)]
-pub struct LocalVariableEntry<'a> {
+pub struct LocalVariableEntry {
     pub start_pc: u16,
     pub length: u16,
-    pub name: Cow<'a, str>,
-    pub descriptor: FieldType<'a>,
+    pub name: Arc<str>,
+    pub descriptor: FieldType,
     pub index: u16,
 }
 
 #[derive(Debug)]
-pub struct LocalVariableTypeEntry<'a> {
+pub struct LocalVariableTypeEntry {
     pub start_pc: u16,
     pub length: u16,
-    pub name: Cow<'a, str>,
-    pub signature: Cow<'a, str>,
+    pub name: Arc<str>,
+    pub signature: Arc<str>,
     pub index: u16,
 }
 
 #[derive(Debug)]
-pub enum AnnotationElementValue<'a> {
+pub enum AnnotationElementValue {
     ByteConstant(i32),
     CharConstant(i32),
     DoubleConstant(f64),
@@ -128,33 +127,33 @@ pub enum AnnotationElementValue<'a> {
     LongConstant(i64),
     ShortConstant(i32),
     BooleanConstant(i32),
-    StringConstant(Cow<'a, str>),
+    StringConstant(Arc<str>),
     EnumConstant {
-        type_name: FieldType<'a>,
-        const_name: Cow<'a, str>,
+        type_name: FieldType,
+        const_name: Arc<str>,
     },
     ClassLiteral {
-        class_name: Cow<'a, str>,
+        class_name: Arc<str>,
     },
-    AnnotationValue(Annotation<'a>),
-    ArrayValue(Vec<AnnotationElementValue<'a>>),
+    AnnotationValue(Annotation),
+    ArrayValue(Vec<AnnotationElementValue>),
 }
 
 #[derive(Debug)]
-pub struct AnnotationElement<'a> {
-    pub name: Cow<'a, str>,
-    pub value: AnnotationElementValue<'a>,
+pub struct AnnotationElement {
+    pub name: Arc<str>,
+    pub value: AnnotationElementValue,
 }
 
 #[derive(Debug)]
-pub struct Annotation<'a> {
-    pub type_descriptor: FieldType<'a>,
-    pub elements: Vec<AnnotationElement<'a>>,
+pub struct Annotation {
+    pub type_descriptor: FieldType,
+    pub elements: Vec<AnnotationElement>,
 }
 
 #[derive(Debug)]
-pub struct ParameterAnnotation<'a> {
-    pub annotations: Vec<Annotation<'a>>,
+pub struct ParameterAnnotation {
+    pub annotations: Vec<Annotation>,
 }
 
 #[derive(Debug)]
@@ -211,16 +210,16 @@ pub struct TypeAnnotationTargetPathEntry {
 }
 
 #[derive(Debug)]
-pub struct TypeAnnotation<'a> {
+pub struct TypeAnnotation {
     pub target_type: TypeAnnotationTarget,
     pub target_path: Vec<TypeAnnotationTargetPathEntry>,
-    pub annotation: Annotation<'a>,
+    pub annotation: Annotation,
 }
 
 #[derive(Debug)]
-pub struct BootstrapMethodEntry<'a> {
-    pub method: MethodHandle<'a>,
-    pub arguments: Vec<BootstrapArgument<'a>>,
+pub struct BootstrapMethodEntry {
+    pub method: MethodHandle,
+    pub arguments: Vec<BootstrapArgument>,
 }
 
 bitflags! {
@@ -232,8 +231,8 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct MethodParameterEntry<'a> {
-    pub name: Option<Cow<'a, str>>,
+pub struct MethodParameterEntry {
+    pub name: Option<Arc<str>>,
     pub access_flags: MethodParameterAccessFlags,
 }
 
@@ -255,10 +254,10 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct ModuleRequireEntry<'a> {
-    pub name: Cow<'a, str>,
+pub struct ModuleRequireEntry {
+    pub name: Arc<str>,
     pub flags: ModuleRequiresFlags,
-    pub version: Option<Cow<'a, str>>,
+    pub version: Option<Arc<str>>,
 }
 
 bitflags! {
@@ -269,10 +268,10 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct ModuleExportsEntry<'a> {
-    pub package_name: Cow<'a, str>,
+pub struct ModuleExportsEntry {
+    pub package_name: Arc<str>,
     pub flags: ModuleExportsFlags,
-    pub exports_to: Vec<Cow<'a, str>>,
+    pub exports_to: Vec<Arc<str>>,
 }
 
 bitflags! {
@@ -283,79 +282,79 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct ModuleOpensEntry<'a> {
-    pub package_name: Cow<'a, str>,
+pub struct ModuleOpensEntry {
+    pub package_name: Arc<str>,
     pub flags: ModuleOpensFlags,
-    pub opens_to: Vec<Cow<'a, str>>,
+    pub opens_to: Vec<Arc<str>>,
 }
 
 #[derive(Debug)]
-pub struct ModuleProvidesEntry<'a> {
-    pub service_interface_name: Cow<'a, str>,
-    pub provides_with: Vec<Cow<'a, str>>,
+pub struct ModuleProvidesEntry {
+    pub service_interface_name: Arc<str>,
+    pub provides_with: Vec<Arc<str>>,
 }
 
 #[derive(Debug)]
-pub struct ModuleData<'a> {
-    pub name: Cow<'a, str>,
+pub struct ModuleData {
+    pub name: Arc<str>,
     pub access_flags: ModuleAccessFlags,
-    pub version: Option<Cow<'a, str>>,
-    pub requires: Vec<ModuleRequireEntry<'a>>,
-    pub exports: Vec<ModuleExportsEntry<'a>>,
-    pub opens: Vec<ModuleOpensEntry<'a>>,
-    pub uses: Vec<Cow<'a, str>>,
-    pub provides: Vec<ModuleProvidesEntry<'a>>,
+    pub version: Option<Arc<str>>,
+    pub requires: Vec<ModuleRequireEntry>,
+    pub exports: Vec<ModuleExportsEntry>,
+    pub opens: Vec<ModuleOpensEntry>,
+    pub uses: Vec<Arc<str>>,
+    pub provides: Vec<ModuleProvidesEntry>,
 }
 
 #[derive(Debug)]
-pub struct RecordComponentEntry<'a> {
-    pub name: Cow<'a, str>,
-    pub descriptor: FieldType<'a>,
-    pub attributes: Vec<AttributeInfo<'a>>,
+pub struct RecordComponentEntry {
+    pub name: Arc<str>,
+    pub descriptor: FieldType,
+    pub attributes: Vec<AttributeInfo>,
 }
 
 #[derive(Debug)]
-pub enum AttributeData<'a> {
-    ConstantValue(LiteralConstant<'a>),
-    Code(CodeData<'a>),
-    StackMapTable(Vec<StackMapEntry<'a>>),
-    Exceptions(Vec<Cow<'a, str>>),
-    InnerClasses(Vec<InnerClassEntry<'a>>),
+pub enum AttributeData {
+    ConstantValue(LiteralConstant),
+    Code(CodeData),
+    StackMapTable(Vec<StackMapEntry>),
+    Exceptions(Vec<Arc<str>>),
+    InnerClasses(Vec<InnerClassEntry>),
     EnclosingMethod {
-        class_name: Cow<'a, str>,
-        method: Option<NameAndType<'a>>,
+        class_name: Arc<str>,
+        method: Option<NameAndType>,
     },
     Synthetic,
-    Signature(Cow<'a, str>),
-    SourceFile(Cow<'a, str>),
-    SourceDebugExtension(Cow<'a, str>),
+    Signature(Arc<str>),
+    SourceFile(Arc<str>),
+    SourceDebugExtension(Arc<str>),
     LineNumberTable(Vec<LineNumberEntry>),
-    LocalVariableTable(Vec<LocalVariableEntry<'a>>),
-    LocalVariableTypeTable(Vec<LocalVariableTypeEntry<'a>>),
+    LocalVariableTable(Vec<LocalVariableEntry>),
+    LocalVariableTypeTable(Vec<LocalVariableTypeEntry>),
     Deprecated,
-    RuntimeVisibleAnnotations(Vec<Annotation<'a>>),
-    RuntimeInvisibleAnnotations(Vec<Annotation<'a>>),
-    RuntimeVisibleParameterAnnotations(Vec<ParameterAnnotation<'a>>),
-    RuntimeInvisibleParameterAnnotations(Vec<ParameterAnnotation<'a>>),
-    RuntimeVisibleTypeAnnotations(Vec<TypeAnnotation<'a>>),
-    RuntimeInvisibleTypeAnnotations(Vec<TypeAnnotation<'a>>),
-    AnnotationDefault(AnnotationElementValue<'a>),
-    BootstrapMethods(Vec<BootstrapMethodEntry<'a>>),
-    MethodParameters(Vec<MethodParameterEntry<'a>>),
-    Module(ModuleData<'a>),
-    ModulePackages(Vec<Cow<'a, str>>),
-    ModuleMainClass(Cow<'a, str>),
-    NestHost(Cow<'a, str>),
-    NestMembers(Vec<Cow<'a, str>>),
-    PermittedSubclasses(Vec<Cow<'a, str>>),
-    Record(Vec<RecordComponentEntry<'a>>),
-    Other(&'a [u8]),
+    RuntimeVisibleAnnotations(Vec<Annotation>),
+    RuntimeInvisibleAnnotations(Vec<Annotation>),
+    RuntimeVisibleParameterAnnotations(Vec<ParameterAnnotation>),
+    RuntimeInvisibleParameterAnnotations(Vec<ParameterAnnotation>),
+    RuntimeVisibleTypeAnnotations(Vec<TypeAnnotation>),
+    RuntimeInvisibleTypeAnnotations(Vec<TypeAnnotation>),
+    AnnotationDefault(AnnotationElementValue),
+    BootstrapMethods(Vec<BootstrapMethodEntry>),
+    MethodParameters(Vec<MethodParameterEntry>),
+    Module(ModuleData),
+    ModulePackages(Vec<Arc<str>>),
+    ModuleMainClass(Arc<str>),
+    NestHost(Arc<str>),
+    NestMembers(Vec<Arc<str>>),
+    PermittedSubclasses(Vec<Arc<str>>),
+    Record(Vec<RecordComponentEntry>),
+    Other(Arc<[u8]>),
 }
 
 #[derive(Debug)]
-pub struct AttributeInfo<'a> {
-    pub name: Cow<'a, str>,
-    pub data: AttributeData<'a>,
+pub struct AttributeInfo {
+    pub name: Arc<str>,
+    pub data: AttributeData,
 }
 
 fn ensure_length(length: usize, expected: usize) -> Result<(), ParseError> {
@@ -365,12 +364,12 @@ fn ensure_length(length: usize, expected: usize) -> Result<(), ParseError> {
     Ok(())
 }
 
-fn read_code_data<'a>(
-    bytes: &'a [u8],
+fn read_code_data(
+    bytes: &[u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
-) -> Result<CodeData<'a>, ParseError> {
+) -> Result<CodeData, ParseError> {
     let max_stack = read_u2(bytes, ix)?;
     let max_locals = read_u2(bytes, ix)?;
     let code_length = read_u4(bytes, ix)? as usize;
@@ -407,18 +406,18 @@ fn read_code_data<'a>(
     Ok(CodeData {
         max_stack,
         max_locals,
-        code,
+        code: Arc::from(code),
         bytecode,
         exception_table,
         attributes: code_attributes,
     })
 }
 
-fn read_stackmaptable_verification<'a>(
-    bytes: &'a [u8],
+fn read_stackmaptable_verification(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<VerificationType<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<VerificationType, ParseError> {
     let verification_type = match read_u1(bytes, ix)? {
         0 => VerificationType::Top,
         1 => VerificationType::Integer,
@@ -441,11 +440,11 @@ fn read_stackmaptable_verification<'a>(
     Ok(verification_type)
 }
 
-fn read_stackmaptable_data<'a>(
-    bytes: &'a [u8],
+fn read_stackmaptable_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<StackMapEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<StackMapEntry>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut stackmapframes = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -534,11 +533,11 @@ fn read_stackmaptable_data<'a>(
     Ok(stackmapframes)
 }
 
-fn read_exceptions_data<'a>(
-    bytes: &'a [u8],
+fn read_exceptions_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<Cow<'a, str>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<Arc<str>>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut exceptions = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -549,11 +548,11 @@ fn read_exceptions_data<'a>(
     Ok(exceptions)
 }
 
-fn read_innerclasses_data<'a>(
-    bytes: &'a [u8],
+fn read_innerclasses_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<InnerClassEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<InnerClassEntry>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut innerclasses = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -588,11 +587,11 @@ fn read_linenumber_data(bytes: &[u8], ix: &mut usize) -> Result<Vec<LineNumberEn
     Ok(linenumbers)
 }
 
-fn read_localvariable_data<'a>(
-    bytes: &'a [u8],
+fn read_localvariable_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<LocalVariableEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<LocalVariableEntry>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut localvariables = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -617,11 +616,11 @@ fn read_localvariable_data<'a>(
     Ok(localvariables)
 }
 
-fn read_localvariabletype_data<'a>(
-    bytes: &'a [u8],
+fn read_localvariabletype_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<LocalVariableTypeEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<LocalVariableTypeEntry>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut localvariabletypes = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -645,11 +644,11 @@ fn read_localvariabletype_data<'a>(
     Ok(localvariabletypes)
 }
 
-fn read_annotation_element_value<'a>(
-    bytes: &'a [u8],
+fn read_annotation_element_value(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<AnnotationElementValue<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<AnnotationElementValue, ParseError> {
     let value = match read_u1(bytes, ix)? as char {
         'B' => AnnotationElementValue::ByteConstant(read_cp_integer(bytes, ix, pool)?),
         'C' => AnnotationElementValue::CharConstant(read_cp_integer(bytes, ix, pool)?),
@@ -694,11 +693,11 @@ fn read_annotation_element_value<'a>(
     Ok(value)
 }
 
-fn read_annotation<'a>(
-    bytes: &'a [u8],
+fn read_annotation(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Annotation<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Annotation, ParseError> {
     let type_descriptor = read_cp_utf8(bytes, ix, pool)
         .and_then(|descriptor| FieldType::parse(&descriptor))
         .map_err(|e| err!(e, "type descriptor field"))?;
@@ -716,11 +715,11 @@ fn read_annotation<'a>(
     })
 }
 
-fn read_annotation_data<'a>(
-    bytes: &'a [u8],
+fn read_annotation_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<Annotation<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<Annotation>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut annotations = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -730,11 +729,11 @@ fn read_annotation_data<'a>(
     Ok(annotations)
 }
 
-fn read_parameter_annotation_data<'a>(
-    bytes: &'a [u8],
+fn read_parameter_annotation_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<ParameterAnnotation<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<ParameterAnnotation>, ParseError> {
     let count = read_u1(bytes, ix)?;
     let mut parameters = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -751,11 +750,11 @@ fn read_parameter_annotation_data<'a>(
     Ok(parameters)
 }
 
-fn read_type_annotation_data<'a>(
-    bytes: &'a [u8],
+fn read_type_annotation_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<TypeAnnotation<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<TypeAnnotation>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut annotations = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -837,11 +836,11 @@ fn read_type_annotation_data<'a>(
     Ok(annotations)
 }
 
-fn read_bootstrapmethods_data<'a>(
-    bytes: &'a [u8],
+fn read_bootstrapmethods_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<BootstrapMethodEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<BootstrapMethodEntry>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut bootstrapmethods = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -859,11 +858,11 @@ fn read_bootstrapmethods_data<'a>(
     Ok(bootstrapmethods)
 }
 
-fn read_methodparameters_data<'a>(
-    bytes: &'a [u8],
+fn read_methodparameters_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<MethodParameterEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<MethodParameterEntry>, ParseError> {
     let count = read_u1(bytes, ix)?;
     let mut methodparameters = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -879,11 +878,11 @@ fn read_methodparameters_data<'a>(
     Ok(methodparameters)
 }
 
-fn read_module_data<'a>(
-    bytes: &'a [u8],
+fn read_module_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<ModuleData<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<ModuleData, ParseError> {
     let name = read_cp_moduleinfo(bytes, ix, pool).map_err(|e| err!(e, "name"))?;
     let access_flags = ModuleAccessFlags::from_bits(read_u2(bytes, ix)?)
         .ok_or_else(|| err!("Invalid access flags found"))?;
@@ -980,11 +979,11 @@ fn read_module_data<'a>(
     })
 }
 
-fn read_modulepackages_data<'a>(
-    bytes: &'a [u8],
+fn read_modulepackages_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<Cow<'a, str>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<Arc<str>>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut packages = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -994,11 +993,11 @@ fn read_modulepackages_data<'a>(
     Ok(packages)
 }
 
-fn read_nestmembers_data<'a>(
-    bytes: &'a [u8],
+fn read_nestmembers_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<Cow<'a, str>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<Arc<str>>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut members = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -1007,11 +1006,11 @@ fn read_nestmembers_data<'a>(
     Ok(members)
 }
 
-fn read_permitted_subclasses_data<'a>(
-    bytes: &'a [u8],
+fn read_permitted_subclasses_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<Cow<'a, str>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<Arc<str>>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut permitted_subclasses = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -1022,12 +1021,12 @@ fn read_permitted_subclasses_data<'a>(
     Ok(permitted_subclasses)
 }
 
-fn read_record_data<'a>(
-    bytes: &'a [u8],
+fn read_record_data(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
-) -> Result<Vec<RecordComponentEntry<'a>>, ParseError> {
+) -> Result<Vec<RecordComponentEntry>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut components = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -1049,12 +1048,12 @@ fn read_record_data<'a>(
     Ok(components)
 }
 
-pub(crate) fn read_attributes<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_attributes(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
-) -> Result<Vec<AttributeInfo<'a>>, ParseError> {
+) -> Result<Vec<AttributeInfo>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut attributes = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -1132,7 +1131,7 @@ pub(crate) fn read_attributes<'a>(
                         ("modified utf8 data of SourceDebugExtension attribute {}", i)
                     )
                 })?;
-                AttributeData::SourceDebugExtension(debug_str)
+                AttributeData::SourceDebugExtension(Arc::from(debug_str))
             }
             "LineNumberTable" => {
                 let linenumber_data = read_linenumber_data(bytes, ix)
@@ -1237,7 +1236,7 @@ pub(crate) fn read_attributes<'a>(
             }
             _ => {
                 *ix += length;
-                AttributeData::Other(&bytes[*ix - length..*ix])
+                AttributeData::Other(Arc::from(&bytes[*ix - length..*ix]))
             }
         };
         if expected_end_ix != *ix {

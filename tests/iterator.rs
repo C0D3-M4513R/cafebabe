@@ -29,7 +29,7 @@ fn iterator_basic() {
     //  #91 = Utf8               Object.java
 
     assert!(match iter.next() {
-        Some(ConstantPoolItem::ClassInfo(x)) => x == "java/lang/StringBuilder",
+        Some(ConstantPoolItem::ClassInfo(x)) => x.as_ref() == "java/lang/StringBuilder",
         _ => false,
     });
     assert!(match iter.next() {
@@ -40,12 +40,12 @@ fn iterator_basic() {
                     name: y,
                     descriptor: z,
                 },
-        })) => x == "java/lang/StringBuilder" && y == "<init>" && z == "()V",
+        })) => x.as_ref() == "java/lang/StringBuilder" && y.as_ref() == "<init>" && z.as_ref() == "()V",
         _ => false,
     });
     let mut iter = iter.skip(29);
     assert!(match iter.next() {
-        Some(ConstantPoolItem::ClassInfo(x)) => x == "java/lang/Throwable",
+        Some(ConstantPoolItem::ClassInfo(x)) => x.as_ref() == "java/lang/Throwable",
         _ => false,
     });
     assert!(iter.next().is_none());

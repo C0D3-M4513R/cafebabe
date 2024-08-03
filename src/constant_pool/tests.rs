@@ -41,8 +41,8 @@ fn wrap(entry: ConstantPoolEntry) -> RwLock<ConstantPoolRef> {
 #[test]
 fn test_validate_trivial() {
     assert_validate_passes!(Zero);
-    assert_validate_passes!(Utf8(Cow::from("some UTF-8")));
-    assert_validate_passes!(Utf8Bytes(&[]));
+    assert_validate_passes!(Utf8(Arc::from("some UTF-8")));
+    assert_validate_passes!(Utf8Bytes(Arc::from([])));
     assert_validate_passes!(Integer(1));
     assert_validate_passes!(Float(2.0));
     assert_validate_passes!(Long(3));
@@ -52,12 +52,12 @@ fn test_validate_trivial() {
 
 #[test]
 fn test_validate_class_info() {
-    assert_validate_passes!(ClassInfo(wrap(Utf8(Cow::from("some/package/Class")))));
-    assert_validate_passes!(ClassInfo(wrap(Utf8(Cow::from("[Lsome/package/Class;")))));
+    assert_validate_passes!(ClassInfo(wrap(Utf8(Arc::from("some/package/Class")))));
+    assert_validate_passes!(ClassInfo(wrap(Utf8(Arc::from("[Lsome/package/Class;")))));
 
-    assert_validate_fails!(ClassInfo(wrap(Utf8(Cow::from("")))), "Invalid binary name");
+    assert_validate_fails!(ClassInfo(wrap(Utf8(Arc::from("")))), "Invalid binary name");
     assert_validate_fails!(
-        ClassInfo(wrap(Utf8Bytes(&[]))),
+        ClassInfo(wrap(Utf8Bytes(Arc::from([])))),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(
@@ -68,8 +68,8 @@ fn test_validate_class_info() {
 
 #[test]
 fn test_validate_string() {
-    assert_validate_passes!(String(wrap(Utf8(Cow::from("some UTF-8")))));
-    assert_validate_passes!(String(wrap(Utf8Bytes(&[]))));
+    assert_validate_passes!(String(wrap(Utf8(Arc::from("some UTF-8")))));
+    assert_validate_passes!(String(wrap(Utf8Bytes(Arc::from([])))));
 
     assert_validate_fails!(
         String(wrap(Zero)),
@@ -80,10 +80,10 @@ fn test_validate_string() {
 #[test]
 fn test_validate_field_ref() {
     assert_validate_passes!(FieldRef(
-        wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+        wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
         wrap(NameAndType(
-            wrap(Utf8(Cow::from("someField"))),
-            wrap(Utf8(Cow::from("I"))),
+            wrap(Utf8(Arc::from("someField"))),
+            wrap(Utf8(Arc::from("I"))),
         )),
     ));
 
@@ -91,43 +91,43 @@ fn test_validate_field_ref() {
         FieldRef(
             wrap(Zero),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someField"))),
-                wrap(Utf8(Cow::from("I"))),
+                wrap(Utf8(Arc::from("someField"))),
+                wrap(Utf8(Arc::from("I"))),
             )),
         ),
         "Unexpected constant pool reference type"
     );
     assert_validate_fails!(
         FieldRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(Zero),
         ),
         "Unexpected constant pool reference type"
     );
     assert_validate_fails!(
         FieldRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someField"))),
-                wrap(Utf8(Cow::from(""))),
+                wrap(Utf8(Arc::from("someField"))),
+                wrap(Utf8(Arc::from(""))),
             )),
         ),
         "Invalid field descriptor"
     );
     assert_validate_fails!(
         FieldRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someField"))),
-                wrap(Utf8Bytes(&[])),
+                wrap(Utf8(Arc::from("someField"))),
+                wrap(Utf8Bytes(Arc::from([]))),
             )),
         ),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(
         FieldRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
-            wrap(NameAndType(wrap(Utf8(Cow::from("someField"))), wrap(Zero))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
+            wrap(NameAndType(wrap(Utf8(Arc::from("someField"))), wrap(Zero))),
         ),
         "Unexpected constant pool reference type"
     );
@@ -136,10 +136,10 @@ fn test_validate_field_ref() {
 #[test]
 fn test_validate_method_ref() {
     assert_validate_passes!(MethodRef(
-        wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+        wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
         wrap(NameAndType(
-            wrap(Utf8(Cow::from("someMethod"))),
-            wrap(Utf8(Cow::from("()V"))),
+            wrap(Utf8(Arc::from("someMethod"))),
+            wrap(Utf8(Arc::from("()V"))),
         )),
     ));
 
@@ -147,43 +147,43 @@ fn test_validate_method_ref() {
         MethodRef(
             wrap(Zero),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8(Cow::from("()V"))),
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8(Arc::from("()V"))),
             )),
         ),
         "Unexpected constant pool reference type"
     );
     assert_validate_fails!(
         MethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(Zero),
         ),
         "Unexpected constant pool reference type"
     );
     assert_validate_fails!(
         MethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8(Cow::from(""))),
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8(Arc::from(""))),
             )),
         ),
         "Invalid method descriptor"
     );
     assert_validate_fails!(
         MethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8Bytes(&[])),
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8Bytes(Arc::from([]))),
             )),
         ),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(
         MethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
-            wrap(NameAndType(wrap(Utf8(Cow::from("someMethod"))), wrap(Zero))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
+            wrap(NameAndType(wrap(Utf8(Arc::from("someMethod"))), wrap(Zero))),
         ),
         "Unexpected constant pool reference type"
     );
@@ -192,10 +192,10 @@ fn test_validate_method_ref() {
 #[test]
 fn test_validate_interface_method_ref() {
     assert_validate_passes!(InterfaceMethodRef(
-        wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+        wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
         wrap(NameAndType(
-            wrap(Utf8(Cow::from("someMethod"))),
-            wrap(Utf8(Cow::from("()V"))),
+            wrap(Utf8(Arc::from("someMethod"))),
+            wrap(Utf8(Arc::from("()V"))),
         )),
     ));
 
@@ -203,43 +203,43 @@ fn test_validate_interface_method_ref() {
         InterfaceMethodRef(
             wrap(Zero),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8(Cow::from("()V"))),
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8(Arc::from("()V"))),
             )),
         ),
         "Unexpected constant pool reference type"
     );
     assert_validate_fails!(
         InterfaceMethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(Zero),
         ),
         "Unexpected constant pool reference type"
     );
     assert_validate_fails!(
         InterfaceMethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8(Cow::from(""))),
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8(Arc::from(""))),
             )),
         ),
         "Invalid method descriptor"
     );
     assert_validate_fails!(
         InterfaceMethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8Bytes(&[])),
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8Bytes(Arc::from([]))),
             )),
         ),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(
         InterfaceMethodRef(
-            wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
-            wrap(NameAndType(wrap(Utf8(Cow::from("someMethod"))), wrap(Zero))),
+            wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
+            wrap(NameAndType(wrap(Utf8(Arc::from("someMethod"))), wrap(Zero))),
         ),
         "Unexpected constant pool reference type"
     );
@@ -248,31 +248,31 @@ fn test_validate_interface_method_ref() {
 #[test]
 fn test_validate_name_and_type() {
     assert_validate_passes!(NameAndType(
-        wrap(Utf8(Cow::from("someUnqualifiedName"))),
-        wrap(Utf8(Cow::from("anything goes"))),
+        wrap(Utf8(Arc::from("someUnqualifiedName"))),
+        wrap(Utf8(Arc::from("anything goes"))),
     ));
     assert_validate_passes!(NameAndType(
-        wrap(Utf8(Cow::from("someUnqualifiedName"))),
-        wrap(Utf8Bytes(&[])),
+        wrap(Utf8(Arc::from("someUnqualifiedName"))),
+        wrap(Utf8Bytes(Arc::from([]))),
     ));
 
     assert_validate_fails!(
         NameAndType(
-            wrap(Utf8(Cow::from(""))),
-            wrap(Utf8(Cow::from("anything goes"))),
+            wrap(Utf8(Arc::from(""))),
+            wrap(Utf8(Arc::from("anything goes"))),
         ),
         "Invalid unqualified name"
     );
     assert_validate_fails!(
-        NameAndType(wrap(Zero), wrap(Utf8(Cow::from("anything goes"))),),
+        NameAndType(wrap(Zero), wrap(Utf8(Arc::from("anything goes"))),),
         "Unexpected constant pool reference type"
     );
     assert_validate_fails!(
-        NameAndType(wrap(Utf8Bytes(&[])), wrap(Utf8(Cow::from("anything goes"))),),
+        NameAndType(wrap(Utf8Bytes(Arc::from([]))), wrap(Utf8(Arc::from("anything goes"))),),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(
-        NameAndType(wrap(Utf8(Cow::from("someUnqualifiedName"))), wrap(Zero)),
+        NameAndType(wrap(Utf8(Arc::from("someUnqualifiedName"))), wrap(Zero)),
         "Unexpected constant pool reference type"
     );
 }
@@ -285,10 +285,10 @@ fn test_validate_method_handle() {
         assert_validate_passes!(MethodHandle(
             kind,
             wrap(FieldRef(
-                wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+                wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
                 wrap(NameAndType(
-                    wrap(Utf8(Cow::from("someField"))),
-                    wrap(Utf8(Cow::from("I"))),
+                    wrap(Utf8(Arc::from("someField"))),
+                    wrap(Utf8(Arc::from("I"))),
                 )),
             ))
         ));
@@ -303,10 +303,10 @@ fn test_validate_method_handle() {
         assert_validate_passes!(MethodHandle(
             kind,
             wrap(MethodRef(
-                wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+                wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
                 wrap(NameAndType(
-                    wrap(Utf8(Cow::from("someMethod"))),
-                    wrap(Utf8(Cow::from("()V"))),
+                    wrap(Utf8(Arc::from("someMethod"))),
+                    wrap(Utf8(Arc::from("()V"))),
                 )),
             ))
         ));
@@ -321,10 +321,10 @@ fn test_validate_method_handle() {
         assert_validate_passes!(MethodHandle(
             kind,
             wrap(MethodRef(
-                wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+                wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
                 wrap(NameAndType(
-                    wrap(Utf8(Cow::from("someMethod"))),
-                    wrap(Utf8(Cow::from("()V"))),
+                    wrap(Utf8(Arc::from("someMethod"))),
+                    wrap(Utf8(Arc::from("()V"))),
                 )),
             ))
         ));
@@ -333,10 +333,10 @@ fn test_validate_method_handle() {
             let entry = MethodHandle(
                 kind,
                 wrap(InterfaceMethodRef(
-                    wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+                    wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
                     wrap(NameAndType(
-                        wrap(Utf8(Cow::from("someMethod"))),
-                        wrap(Utf8(Cow::from("()V"))),
+                        wrap(Utf8(Arc::from("someMethod"))),
+                        wrap(Utf8(Arc::from("()V"))),
                     )),
                 )),
             );
@@ -358,10 +358,10 @@ fn test_validate_method_handle() {
         assert_validate_passes!(MethodHandle(
             kind,
             wrap(InterfaceMethodRef(
-                wrap(ClassInfo(wrap(Utf8(Cow::from("some/package/Class"))))),
+                wrap(ClassInfo(wrap(Utf8(Arc::from("some/package/Class"))))),
                 wrap(NameAndType(
-                    wrap(Utf8(Cow::from("someMethod"))),
-                    wrap(Utf8(Cow::from("()V"))),
+                    wrap(Utf8(Arc::from("someMethod"))),
+                    wrap(Utf8(Arc::from("()V"))),
                 )),
             ))
         ));
@@ -375,14 +375,14 @@ fn test_validate_method_handle() {
 
 #[test]
 fn test_validate_method_type() {
-    assert_validate_passes!(MethodType(wrap(Utf8(Cow::from("()V")))));
+    assert_validate_passes!(MethodType(wrap(Utf8(Arc::from("()V")))));
 
     assert_validate_fails!(
-        MethodType(wrap(Utf8(Cow::from("")))),
+        MethodType(wrap(Utf8(Arc::from("")))),
         "Invalid method descriptor"
     );
     assert_validate_fails!(
-        MethodType(wrap(Utf8Bytes(&[]))),
+        MethodType(wrap(Utf8Bytes(Arc::from([])))),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(
@@ -396,22 +396,22 @@ fn test_validate_dynamic() {
     assert_validate_passes!(Dynamic(
         0,
         wrap(NameAndType(
-            wrap(Utf8(Cow::from("someField"))),
-            wrap(Utf8(Cow::from("I"))),
+            wrap(Utf8(Arc::from("someField"))),
+            wrap(Utf8(Arc::from("I"))),
         )),
     ));
     assert_validate_passes!(Dynamic(
         0,
         wrap(NameAndType(
-            wrap(Utf8(Cow::from(""))),
-            wrap(Utf8(Cow::from("I"))),
+            wrap(Utf8(Arc::from(""))),
+            wrap(Utf8(Arc::from("I"))),
         )),
     ));
     assert_validate_passes!(Dynamic(
         0,
         wrap(NameAndType(
-            wrap(Utf8Bytes(&[])),
-            wrap(Utf8(Cow::from("I"))),
+            wrap(Utf8Bytes(Arc::from([]))),
+            wrap(Utf8(Arc::from("I"))),
         )),
     ));
 
@@ -423,8 +423,8 @@ fn test_validate_dynamic() {
         Dynamic(
             0,
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someField"))),
-                wrap(Utf8(Cow::from(""))),
+                wrap(Utf8(Arc::from("someField"))),
+                wrap(Utf8(Arc::from(""))),
             )),
         ),
         "Invalid field descriptor"
@@ -433,8 +433,8 @@ fn test_validate_dynamic() {
         Dynamic(
             0,
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someField"))),
-                wrap(Utf8Bytes(&[]))
+                wrap(Utf8(Arc::from("someField"))),
+                wrap(Utf8Bytes(Arc::from([])))
             )),
         ),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
@@ -446,22 +446,22 @@ fn test_validate_invoke_dynamic() {
     assert_validate_passes!(InvokeDynamic(
         0,
         wrap(NameAndType(
-            wrap(Utf8(Cow::from("someMethod"))),
-            wrap(Utf8(Cow::from("()V"))),
+            wrap(Utf8(Arc::from("someMethod"))),
+            wrap(Utf8(Arc::from("()V"))),
         )),
     ));
     assert_validate_passes!(InvokeDynamic(
         0,
         wrap(NameAndType(
-            wrap(Utf8(Cow::from(""))),
-            wrap(Utf8(Cow::from("()V"))),
+            wrap(Utf8(Arc::from(""))),
+            wrap(Utf8(Arc::from("()V"))),
         )),
     ));
     assert_validate_passes!(InvokeDynamic(
         0,
         wrap(NameAndType(
-            wrap(Utf8Bytes(&[])),
-            wrap(Utf8(Cow::from("()V"))),
+            wrap(Utf8Bytes(Arc::from([]))),
+            wrap(Utf8(Arc::from("()V"))),
         )),
     ));
 
@@ -473,8 +473,8 @@ fn test_validate_invoke_dynamic() {
         InvokeDynamic(
             0,
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8(Cow::from(""))),
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8(Arc::from(""))),
             )),
         ),
         "Invalid method descriptor"
@@ -483,8 +483,8 @@ fn test_validate_invoke_dynamic() {
         InvokeDynamic(
             0,
             wrap(NameAndType(
-                wrap(Utf8(Cow::from("someMethod"))),
-                wrap(Utf8Bytes(&[]))
+                wrap(Utf8(Arc::from("someMethod"))),
+                wrap(Utf8Bytes(Arc::from([])))
             )),
         ),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
@@ -493,14 +493,14 @@ fn test_validate_invoke_dynamic() {
 
 #[test]
 fn test_validate_module_info() {
-    assert_validate_passes!(ModuleInfo(wrap(Utf8(Cow::from("some.module")))));
+    assert_validate_passes!(ModuleInfo(wrap(Utf8(Arc::from("some.module")))));
 
     assert_validate_fails!(
-        ModuleInfo(wrap(Utf8(Cow::from("@")))),
+        ModuleInfo(wrap(Utf8(Arc::from("@")))),
         "Invalid module name"
     );
     assert_validate_fails!(
-        ModuleInfo(wrap(Utf8Bytes(&[]))),
+        ModuleInfo(wrap(Utf8Bytes(Arc::from([])))),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(
@@ -511,14 +511,14 @@ fn test_validate_module_info() {
 
 #[test]
 fn test_validate_invoke_package_info() {
-    assert_validate_passes!(PackageInfo(wrap(Utf8(Cow::from("some/package")))));
+    assert_validate_passes!(PackageInfo(wrap(Utf8(Arc::from("some/package")))));
 
     assert_validate_fails!(
-        PackageInfo(wrap(Utf8(Cow::from("")))),
+        PackageInfo(wrap(Utf8(Arc::from("")))),
         "Invalid binary name"
     );
     assert_validate_fails!(
-        PackageInfo(wrap(Utf8Bytes(&[]))),
+        PackageInfo(wrap(Utf8Bytes(Arc::from([])))),
         "Attempting to get utf-8 data from non-utf8 constant pool entry!"
     );
     assert_validate_fails!(

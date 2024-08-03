@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::sync::RwLock;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -10,16 +9,16 @@ use crate::names::{
 use crate::{read_u1, read_u2, read_u4, read_u8, ParseError};
 
 #[derive(Debug)]
-pub(crate) enum ConstantPoolRef<'a> {
+pub(crate) enum ConstantPoolRef {
     Unresolved(u16),
-    Resolved(Arc<ConstantPoolEntry<'a>>),
+    Resolved(Arc<ConstantPoolEntry>),
 }
 
-impl<'a> ConstantPoolRef<'a> {
+impl ConstantPoolRef {
     fn resolve(
         &mut self,
         my_index: usize,
-        pool: &[Arc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry>],
     ) -> Result<(), ParseError> {
         match self {
             ConstantPoolRef::Unresolved(ix) => {
@@ -41,7 +40,7 @@ impl<'a> ConstantPoolRef<'a> {
         }
     }
 
-    fn get(&self) -> &Arc<ConstantPoolEntry<'a>> {
+    fn get(&self) -> &Arc<ConstantPoolEntry> {
         match self {
             ConstantPoolRef::Unresolved(_) => panic!("Called get on a unresolved ConstantPoolRef"),
             ConstantPoolRef::Resolved(target) => target,
@@ -49,20 +48,20 @@ impl<'a> ConstantPoolRef<'a> {
     }
 }
 
-trait RwLockDeref<'a> {
+trait RwLockDeref {
     fn resolve(
         &self,
         cp_index: usize,
-        pool: &[Arc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry>],
     ) -> Result<(), ParseError>;
     fn ensure_type(&self, allowed: ConstantPoolEntryTypes) -> Result<(), ParseError>;
 }
 
-impl<'a> RwLockDeref<'a> for RwLock<ConstantPoolRef<'a>> {
+impl RwLockDeref for RwLock<ConstantPoolRef> {
     fn resolve(
         &self,
         cp_index: usize,
-        pool: &[Arc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry>],
     ) -> Result<(), ParseError> {
         self.write().unwrap().resolve(cp_index, pool)
     }
@@ -117,34 +116,34 @@ bitflags! {
 type BootstrapMethodRef = u16;
 
 #[derive(Debug)]
-pub(crate) enum ConstantPoolEntry<'a> {
+pub(crate) enum ConstantPoolEntry {
     Zero,
-    Utf8(Cow<'a, str>),
-    Utf8Bytes(&'a [u8]),
+    Utf8(Arc<str>),
+    Utf8Bytes(Arc<[u8]>),
     Integer(i32),
     Float(f32),
     Long(i64),
     Double(f64),
-    ClassInfo(RwLock<ConstantPoolRef<'a>>),
-    String(RwLock<ConstantPoolRef<'a>>),
-    FieldRef(RwLock<ConstantPoolRef<'a>>, RwLock<ConstantPoolRef<'a>>),
-    MethodRef(RwLock<ConstantPoolRef<'a>>, RwLock<ConstantPoolRef<'a>>),
-    InterfaceMethodRef(RwLock<ConstantPoolRef<'a>>, RwLock<ConstantPoolRef<'a>>),
-    NameAndType(RwLock<ConstantPoolRef<'a>>, RwLock<ConstantPoolRef<'a>>),
-    MethodHandle(ReferenceKind, RwLock<ConstantPoolRef<'a>>),
-    MethodType(RwLock<ConstantPoolRef<'a>>),
-    Dynamic(BootstrapMethodRef, RwLock<ConstantPoolRef<'a>>),
-    InvokeDynamic(BootstrapMethodRef, RwLock<ConstantPoolRef<'a>>),
-    ModuleInfo(RwLock<ConstantPoolRef<'a>>),
-    PackageInfo(RwLock<ConstantPoolRef<'a>>),
+    ClassInfo(RwLock<ConstantPoolRef>),
+    String(RwLock<ConstantPoolRef>),
+    FieldRef(RwLock<ConstantPoolRef>, RwLock<ConstantPoolRef>),
+    MethodRef(RwLock<ConstantPoolRef>, RwLock<ConstantPoolRef>),
+    InterfaceMethodRef(RwLock<ConstantPoolRef>, RwLock<ConstantPoolRef>),
+    NameAndType(RwLock<ConstantPoolRef>, RwLock<ConstantPoolRef>),
+    MethodHandle(ReferenceKind, RwLock<ConstantPoolRef>),
+    MethodType(RwLock<ConstantPoolRef>),
+    Dynamic(BootstrapMethodRef, RwLock<ConstantPoolRef>),
+    InvokeDynamic(BootstrapMethodRef, RwLock<ConstantPoolRef>),
+    ModuleInfo(RwLock<ConstantPoolRef>),
+    PackageInfo(RwLock<ConstantPoolRef>),
     Unused,
 }
 
-impl<'a> ConstantPoolEntry<'a> {
+impl ConstantPoolEntry {
     fn resolve(
         &self,
         my_index: usize,
-        pool: &[Arc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry>],
     ) -> Result<(), ParseError> {
         match self {
             // Entry types that do not reference other entries:
@@ -366,29 +365,29 @@ impl<'a> ConstantPoolEntry<'a> {
         }
     }
 
-    fn utf8(&self) -> Cow<'a, str> {
+    fn utf8(&self) -> Arc<str> {
         match self {
             ConstantPoolEntry::Utf8(x) => x.clone(),
             _ => panic!("Attempting to get utf-8 data from non-utf8 constant pool entry!"),
         }
     }
 
-    fn string_literal(&self) -> LiteralConstant<'a> {
+    fn string_literal(&self) -> LiteralConstant {
         match self {
             ConstantPoolEntry::Utf8(x) => LiteralConstant::String(x.clone()),
-            ConstantPoolEntry::Utf8Bytes(x) => LiteralConstant::StringBytes(x),
+            ConstantPoolEntry::Utf8Bytes(x) => LiteralConstant::StringBytes(x.clone()),
             _ => panic!("Attempting to get utf-8 data from non-utf8 constant pool entry!"),
         }
     }
 
-    fn classinfo(&self) -> Cow<'a, str> {
+    fn classinfo(&self) -> Arc<str> {
         match self {
             ConstantPoolEntry::ClassInfo(x) => x.read().unwrap().get().utf8(),
             _ => panic!("Attempting to get classinfo data from non-classinfo constant pool entry!"),
         }
     }
 
-    fn name_and_type(&self) -> NameAndType<'a> {
+    fn name_and_type(&self) -> NameAndType {
         match self {
             ConstantPoolEntry::NameAndType(x, y) => NameAndType {
                 name: x.read().unwrap().get().utf8(),
@@ -401,19 +400,19 @@ impl<'a> ConstantPoolEntry<'a> {
     }
 }
 
-fn read_unresolved_cp_ref<'a>(
-    bytes: &'a [u8],
+fn read_unresolved_cp_ref(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<RwLock<ConstantPoolRef<'a>>, ParseError> {
+) -> Result<RwLock<ConstantPoolRef>, ParseError> {
     Ok(RwLock::new(ConstantPoolRef::Unresolved(read_u2(
         bytes, ix,
     )?)))
 }
 
-fn read_constant_utf8<'a>(
-    bytes: &'a [u8],
+fn read_constant_utf8(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let length = read_u2(bytes, ix)? as usize;
     if bytes.len() < *ix + length {
         fail!(
@@ -433,83 +432,83 @@ fn read_constant_utf8<'a>(
     // literal constants, so we can still expose other things (like descriptors and classnames)
     // as Rust strings. Only literal Java strings need to be able to expose the raw bytes.
     match cesu8::from_java_cesu8(modified_utf8_data) {
-        Ok(rust_str) => Ok(ConstantPoolEntry::Utf8(rust_str)),
-        _ => Ok(ConstantPoolEntry::Utf8Bytes(modified_utf8_data)),
+        Ok(rust_str) => Ok(ConstantPoolEntry::Utf8(Arc::from(rust_str))),
+        _ => Ok(ConstantPoolEntry::Utf8Bytes(Arc::from(modified_utf8_data))),
     }
 }
 
-fn read_constant_integer<'a>(
-    bytes: &'a [u8],
+fn read_constant_integer(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     #![allow(clippy::cast_possible_wrap)] // Wrapping is allowed and desired.
     Ok(ConstantPoolEntry::Integer(read_u4(bytes, ix)? as i32))
 }
 
-fn read_constant_float<'a>(
-    bytes: &'a [u8],
+fn read_constant_float(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     Ok(ConstantPoolEntry::Float(f32::from_bits(read_u4(
         bytes, ix,
     )?)))
 }
 
-fn read_constant_long<'a>(
-    bytes: &'a [u8],
+fn read_constant_long(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     #![allow(clippy::cast_possible_wrap)] // Wrapping is allowed and desired.
     Ok(ConstantPoolEntry::Long(read_u8(bytes, ix)? as i64))
 }
 
-fn read_constant_double<'a>(
-    bytes: &'a [u8],
+fn read_constant_double(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     Ok(ConstantPoolEntry::Double(f64::from_bits(read_u8(
         bytes, ix,
     )?)))
 }
 
-fn read_constant_class<'a>(
-    bytes: &'a [u8],
+fn read_constant_class(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let name_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::ClassInfo(name_ref))
 }
 
-fn read_constant_string<'a>(
-    bytes: &'a [u8],
+fn read_constant_string(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let value_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::String(value_ref))
 }
 
-fn read_constant_fieldref<'a>(
-    bytes: &'a [u8],
+fn read_constant_fieldref(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let class_ref = read_unresolved_cp_ref(bytes, ix)?;
     let name_and_type_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::FieldRef(class_ref, name_and_type_ref))
 }
 
-fn read_constant_methodref<'a>(
-    bytes: &'a [u8],
+fn read_constant_methodref(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let class_ref = read_unresolved_cp_ref(bytes, ix)?;
     let name_and_type_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::MethodRef(class_ref, name_and_type_ref))
 }
 
-fn read_constant_interfacemethodref<'a>(
-    bytes: &'a [u8],
+fn read_constant_interfacemethodref(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let class_ref = read_unresolved_cp_ref(bytes, ix)?;
     let name_and_type_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::InterfaceMethodRef(
@@ -518,19 +517,19 @@ fn read_constant_interfacemethodref<'a>(
     ))
 }
 
-fn read_constant_nameandtype<'a>(
-    bytes: &'a [u8],
+fn read_constant_nameandtype(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let name_ref = read_unresolved_cp_ref(bytes, ix)?;
     let descriptor_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::NameAndType(name_ref, descriptor_ref))
 }
 
-fn read_constant_methodhandle<'a>(
-    bytes: &'a [u8],
+fn read_constant_methodhandle(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let reference_kind = match read_u1(bytes, ix)? {
         1 => ReferenceKind::GetField,
         2 => ReferenceKind::GetStatic,
@@ -554,18 +553,18 @@ fn read_constant_methodhandle<'a>(
     ))
 }
 
-fn read_constant_methodtype<'a>(
-    bytes: &'a [u8],
+fn read_constant_methodtype(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let descriptor_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::MethodType(descriptor_ref))
 }
 
-fn read_constant_dynamic<'a>(
-    bytes: &'a [u8],
+fn read_constant_dynamic(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let bootstrap_method_ref = read_u2(bytes, ix)?;
     let name_and_type_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::Dynamic(
@@ -574,10 +573,10 @@ fn read_constant_dynamic<'a>(
     ))
 }
 
-fn read_constant_invokedynamic<'a>(
-    bytes: &'a [u8],
+fn read_constant_invokedynamic(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let bootstrap_method_ref = read_u2(bytes, ix)?;
     let name_and_type_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::InvokeDynamic(
@@ -586,18 +585,18 @@ fn read_constant_invokedynamic<'a>(
     ))
 }
 
-fn read_constant_module<'a>(
-    bytes: &'a [u8],
+fn read_constant_module(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let name_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::ModuleInfo(name_ref))
 }
 
-fn read_constant_package<'a>(
-    bytes: &'a [u8],
+fn read_constant_package(
+    bytes: & [u8],
     ix: &mut usize,
-) -> Result<ConstantPoolEntry<'a>, ParseError> {
+) -> Result<ConstantPoolEntry, ParseError> {
     let name_ref = read_unresolved_cp_ref(bytes, ix)?;
     Ok(ConstantPoolEntry::PackageInfo(name_ref))
 }
@@ -621,11 +620,11 @@ fn validate_constant_pool(
     Ok(())
 }
 
-pub(crate) fn read_constant_pool<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_constant_pool(
+    bytes: & [u8],
     ix: &mut usize,
     major_version: u16,
-) -> Result<Vec<Arc<ConstantPoolEntry<'a>>>, ParseError> {
+) -> Result<Vec<Arc<ConstantPoolEntry>>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut constant_pool = Vec::with_capacity(count.into());
     constant_pool.push(Arc::new(ConstantPoolEntry::Zero));
@@ -670,11 +669,11 @@ pub(crate) fn read_constant_pool<'a>(
     Ok(constant_pool)
 }
 
-fn read_cp_ref_any<'a>(
-    bytes: &'a [u8],
+fn read_cp_ref_any(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Arc<ConstantPoolEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Arc<ConstantPoolEntry>, ParseError> {
     let cp_index = read_u2(bytes, ix)? as usize;
     if cp_index >= pool.len() {
         fail!(
@@ -685,11 +684,11 @@ fn read_cp_ref_any<'a>(
     Ok(pool[cp_index].clone())
 }
 
-pub(crate) fn read_cp_utf8<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_utf8(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Cow<'a, str>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Arc<str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::Utf8(x) => Ok(x.clone()),
@@ -697,11 +696,11 @@ pub(crate) fn read_cp_utf8<'a>(
     }
 }
 
-pub(crate) fn read_cp_utf8_opt<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_utf8_opt(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Option<Cow<'a, str>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Option<Arc<str>>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::Zero => Ok(None),
@@ -710,11 +709,11 @@ pub(crate) fn read_cp_utf8_opt<'a>(
     }
 }
 
-pub(crate) fn read_cp_classinfo<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_classinfo(
+    bytes: &[u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Cow<'a, str>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Arc<str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::ClassInfo(x) => Ok(x.read().unwrap().get().utf8()),
@@ -722,11 +721,11 @@ pub(crate) fn read_cp_classinfo<'a>(
     }
 }
 
-pub(crate) fn read_cp_classinfo_opt<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_classinfo_opt(
+    bytes: &[u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Option<Cow<'a, str>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Option<Arc<str>>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::Zero => Ok(None),
@@ -735,11 +734,11 @@ pub(crate) fn read_cp_classinfo_opt<'a>(
     }
 }
 
-pub(crate) fn read_cp_moduleinfo<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_moduleinfo(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Cow<'a, str>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Arc<str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::ModuleInfo(x) => Ok(x.read().unwrap().get().utf8()),
@@ -747,11 +746,11 @@ pub(crate) fn read_cp_moduleinfo<'a>(
     }
 }
 
-pub(crate) fn read_cp_packageinfo<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_packageinfo(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Cow<'a, str>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Arc<str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::PackageInfo(x) => Ok(x.read().unwrap().get().utf8()),
@@ -760,16 +759,16 @@ pub(crate) fn read_cp_packageinfo<'a>(
 }
 
 #[derive(Clone, Debug)]
-pub struct NameAndType<'a> {
-    pub name: Cow<'a, str>,
-    pub descriptor: Cow<'a, str>,
+pub struct NameAndType {
+    pub name: Arc<str>,
+    pub descriptor: Arc<str>,
 }
 
-pub(crate) fn read_cp_nameandtype_opt<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_nameandtype_opt(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Option<NameAndType<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Option<NameAndType>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::Zero => Ok(None),
@@ -782,20 +781,20 @@ pub(crate) fn read_cp_nameandtype_opt<'a>(
 }
 
 #[derive(Clone, Debug)]
-pub enum LiteralConstant<'a> {
+pub enum LiteralConstant {
     Integer(i32),
     Float(f32),
     Long(i64),
     Double(f64),
-    String(Cow<'a, str>),
-    StringBytes(&'a [u8]),
+    String(Arc<str>),
+    StringBytes(Arc<[u8]>),
 }
 
-pub(crate) fn read_cp_literalconstant<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_literalconstant(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<LiteralConstant<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<LiteralConstant, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::Integer(v) => Ok(LiteralConstant::Integer(*v)),
@@ -807,10 +806,10 @@ pub(crate) fn read_cp_literalconstant<'a>(
     }
 }
 
-pub(crate) fn read_cp_integer<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_integer(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
 ) -> Result<i32, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -819,10 +818,10 @@ pub(crate) fn read_cp_integer<'a>(
     }
 }
 
-pub(crate) fn read_cp_float<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_float(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
 ) -> Result<f32, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -831,10 +830,10 @@ pub(crate) fn read_cp_float<'a>(
     }
 }
 
-pub(crate) fn read_cp_long<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_long(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
 ) -> Result<i64, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -843,10 +842,10 @@ pub(crate) fn read_cp_long<'a>(
     }
 }
 
-pub(crate) fn read_cp_double<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_double(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
 ) -> Result<f64, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -856,17 +855,17 @@ pub(crate) fn read_cp_double<'a>(
 }
 
 #[derive(Clone, Debug)]
-pub struct MemberRef<'a> {
-    pub class_name: Cow<'a, str>,
-    pub name_and_type: NameAndType<'a>,
+pub struct MemberRef {
+    pub class_name: Arc<str>,
+    pub name_and_type: NameAndType,
 }
 
-pub(crate) fn read_cp_memberref<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_memberref(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
     allowed: ConstantPoolEntryTypes,
-) -> Result<MemberRef<'a>, ParseError> {
+) -> Result<MemberRef, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     // The caller can restrict the specific member types allowed here such
     // that we return an Err if it's not one of the allowed types.
@@ -883,16 +882,16 @@ pub(crate) fn read_cp_memberref<'a>(
 }
 
 #[derive(Clone, Debug)]
-pub struct InvokeDynamic<'a> {
+pub struct InvokeDynamic {
     pub attr_index: u16,
-    pub name_and_type: NameAndType<'a>,
+    pub name_and_type: NameAndType,
 }
 
-pub(crate) fn read_cp_invokedynamic<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_invokedynamic(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<InvokeDynamic<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<InvokeDynamic, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::InvokeDynamic(x, y) => Ok(InvokeDynamic {
@@ -904,24 +903,24 @@ pub(crate) fn read_cp_invokedynamic<'a>(
 }
 
 #[derive(Clone, Debug)]
-pub struct Dynamic<'a> {
+pub struct Dynamic {
     pub attr_index: u16,
-    pub name_and_type: NameAndType<'a>,
+    pub name_and_type: NameAndType,
 }
 
 #[derive(Clone, Debug)]
-pub enum Loadable<'a> {
-    LiteralConstant(LiteralConstant<'a>),
-    ClassInfo(Cow<'a, str>),
-    MethodHandle(MethodHandle<'a>),
-    MethodType(Cow<'a, str>),
-    Dynamic(Dynamic<'a>),
+pub enum Loadable {
+    LiteralConstant(LiteralConstant),
+    ClassInfo(Arc<str>),
+    MethodHandle(MethodHandle),
+    MethodType(Arc<str>),
+    Dynamic(Dynamic),
 }
 
-pub(crate) fn get_cp_loadable<'a>(
+pub(crate) fn get_cp_loadable(
     cp_index: usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Loadable<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Loadable, ParseError> {
     if cp_index >= pool.len() {
         fail!(
             "Out-of-bounds index {} in constant pool reference",
@@ -959,17 +958,17 @@ pub enum MemberKind {
 }
 
 #[derive(Clone, Debug)]
-pub struct MethodHandle<'a> {
+pub struct MethodHandle {
     pub kind: ReferenceKind,
-    pub class_name: Cow<'a, str>,
+    pub class_name: Arc<str>,
     pub member_kind: MemberKind,
-    pub member_ref: NameAndType<'a>,
+    pub member_ref: NameAndType,
 }
 
-fn make_method_handle<'a>(
+fn make_method_handle(
     x: &ReferenceKind,
-    y: &RwLock<ConstantPoolRef<'a>>,
-) -> Result<MethodHandle<'a>, ParseError> {
+    y: &RwLock<ConstantPoolRef>,
+) -> Result<MethodHandle, ParseError> {
     let (class_name, member_kind, member_ref) = match y.read().unwrap().get().deref() {
         ConstantPoolEntry::FieldRef(c, m) => (
             c.read().unwrap().get().classinfo(),
@@ -996,11 +995,11 @@ fn make_method_handle<'a>(
     })
 }
 
-pub(crate) fn read_cp_methodhandle<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_methodhandle(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<MethodHandle<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<MethodHandle, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::MethodHandle(x, y) => make_method_handle(x, y),
@@ -1009,18 +1008,18 @@ pub(crate) fn read_cp_methodhandle<'a>(
 }
 
 #[derive(Debug)]
-pub enum BootstrapArgument<'a> {
-    LiteralConstant(LiteralConstant<'a>),
-    ClassInfo(Cow<'a, str>),
-    MethodHandle(MethodHandle<'a>),
-    MethodType(Cow<'a, str>),
+pub enum BootstrapArgument {
+    LiteralConstant(LiteralConstant),
+    ClassInfo(Arc<str>),
+    MethodHandle(MethodHandle),
+    MethodType(Arc<str>),
 }
 
-pub(crate) fn read_cp_bootstrap_argument<'a>(
-    bytes: &'a [u8],
+pub(crate) fn read_cp_bootstrap_argument(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<BootstrapArgument<'a>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<BootstrapArgument, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
         ConstantPoolEntry::Integer(v) => Ok(BootstrapArgument::LiteralConstant(
@@ -1052,28 +1051,29 @@ pub(crate) fn read_cp_bootstrap_argument<'a>(
 }
 
 #[derive(Debug)]
-pub enum ConstantPoolItem<'a> {
-    LiteralConstant(LiteralConstant<'a>),
-    ClassInfo(Cow<'a, str>),
-    FieldRef(MemberRef<'a>),
-    MethodRef(MemberRef<'a>),
-    InterfaceMethodRef(MemberRef<'a>),
-    NameAndType(NameAndType<'a>),
-    MethodHandle(MethodHandle<'a>),
-    MethodType(Cow<'a, str>),
-    Dynamic(Dynamic<'a>),
-    InvokeDynamic(InvokeDynamic<'a>),
-    ModuleInfo(Cow<'a, str>),
-    PackageInfo(Cow<'a, str>),
+pub enum ConstantPoolItem {
+    LiteralConstant(LiteralConstant),
+    ClassInfo(Arc<str>),
+    FieldRef(MemberRef),
+    MethodRef(MemberRef),
+    InterfaceMethodRef(MemberRef),
+    NameAndType(NameAndType),
+    MethodHandle(MethodHandle),
+    MethodType(Arc<str>),
+    Dynamic(Dynamic),
+    InvokeDynamic(InvokeDynamic),
+    ModuleInfo(Arc<str>),
+    PackageInfo(Arc<str>),
 }
 
-pub struct ConstantPoolIter<'a> {
-    constant_pool: &'a [Arc<ConstantPoolEntry<'a>>],
+#[derive(Clone, Debug)]
+pub struct ConstantPoolIter {
+    constant_pool: Arc<[Arc<ConstantPoolEntry>]>,
     index: usize,
 }
 
-impl<'a> ConstantPoolIter<'a> {
-    pub(crate) fn new(constant_pool: &'a [Arc<ConstantPoolEntry<'a>>]) -> Self {
+impl ConstantPoolIter {
+    pub(crate) fn new(constant_pool: Arc<[Arc<ConstantPoolEntry>]>) -> Self {
         ConstantPoolIter {
             constant_pool,
             index: 0,
@@ -1081,8 +1081,8 @@ impl<'a> ConstantPoolIter<'a> {
     }
 }
 
-impl<'a> Iterator for ConstantPoolIter<'a> {
-    type Item = ConstantPoolItem<'a>;
+impl Iterator for ConstantPoolIter {
+    type Item = ConstantPoolItem;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.index + 1 < self.constant_pool.len() {

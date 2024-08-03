@@ -15,7 +15,6 @@ pub mod constant_pool;
 pub mod descriptor;
 pub mod names;
 
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -78,11 +77,11 @@ pub(crate) fn read_u8(bytes: &[u8], ix: &mut usize) -> Result<u64, ParseError> {
     Ok(result)
 }
 
-fn read_interfaces<'a>(
-    bytes: &'a [u8],
+fn read_interfaces(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-) -> Result<Vec<Cow<'a, str>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry>],
+) -> Result<Vec<Arc<str>>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut interfaces = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -135,22 +134,22 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct FieldInfo<'a> {
+pub struct FieldInfo {
     pub access_flags: FieldAccessFlags,
-    pub name: Cow<'a, str>,
-    pub descriptor: FieldType<'a>,
-    pub attributes: Vec<AttributeInfo<'a>>,
+    pub name: Arc<str>,
+    pub descriptor: FieldType,
+    pub attributes: Vec<AttributeInfo>,
 }
 
-fn read_fields<'a>(
-    bytes: &'a [u8],
+fn read_fields(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
-) -> Result<Vec<FieldInfo<'a>>, ParseError> {
+) -> Result<Vec<FieldInfo>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut fields = Vec::with_capacity(count.into());
-    let mut unique_ids: HashSet<(Cow<'a, str>, FieldType<'a>)> = HashSet::new();
+    let mut unique_ids: HashSet<(Arc<str>, FieldType)> = HashSet::new();
     for i in 0..count {
         let access_flags = FieldAccessFlags::from_bits_truncate(read_u2(bytes, ix)?);
         let name =
@@ -199,24 +198,24 @@ bitflags! {
 }
 
 #[derive(Debug)]
-pub struct MethodInfo<'a> {
+pub struct MethodInfo {
     pub access_flags: MethodAccessFlags,
-    pub name: Cow<'a, str>,
-    pub descriptor: MethodDescriptor<'a>,
-    pub attributes: Vec<AttributeInfo<'a>>,
+    pub name: Arc<str>,
+    pub descriptor: MethodDescriptor,
+    pub attributes: Vec<AttributeInfo>,
 }
 
-fn read_methods<'a>(
-    bytes: &'a [u8],
+fn read_methods(
+    bytes: & [u8],
     ix: &mut usize,
-    pool: &[Arc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
     in_interface: bool,
     major_version: u16,
-) -> Result<Vec<MethodInfo<'a>>, ParseError> {
+) -> Result<Vec<MethodInfo>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut methods = Vec::with_capacity(count.into());
-    let mut unique_ids: HashSet<(Cow<'a, str>, MethodDescriptor<'a>)> = HashSet::new();
+    let mut unique_ids: HashSet<(Arc<str>, MethodDescriptor)> = HashSet::new();
     for i in 0..count {
         let access_flags = MethodAccessFlags::from_bits_truncate(read_u2(bytes, ix)?);
         let name =
@@ -229,10 +228,10 @@ fn read_methods<'a>(
             .map_err(|e| err!(e, "descriptor of class method {}", i))?;
         let descriptor = MethodDescriptor::parse(&descriptor)?;
 
-        if allow_init && name == "<init>" && descriptor.result != ReturnDescriptor::Void {
+        if allow_init && name.as_ref() == "<init>" && descriptor.result != ReturnDescriptor::Void {
             fail!("Non-void method descriptor for init method {}", i);
         }
-        if name == "<clinit>" {
+        if name.as_ref() == "<clinit>" {
             if descriptor.result != ReturnDescriptor::Void {
                 fail!("Non-void method descriptor for clinit method {}", i);
             }
@@ -273,9 +272,9 @@ bitflags! {
     }
 }
 
-fn validate_bootstrap_methods<'a>(
-    pool: &[Arc<ConstantPoolEntry<'a>>],
-    attributes: &[AttributeInfo<'a>],
+fn validate_bootstrap_methods(
+    pool: &[Arc<ConstantPoolEntry>],
+    attributes: &[AttributeInfo],
 ) -> Result<(), ParseError> {
     for cp_entry in pool {
         match cp_entry.deref() {
@@ -303,23 +302,23 @@ fn validate_bootstrap_methods<'a>(
 }
 
 #[derive(Debug)]
-pub struct ClassFile<'a> {
+pub struct ClassFile {
     pub major_version: u16,
     pub minor_version: u16,
-    constant_pool: Vec<Arc<ConstantPoolEntry<'a>>>,
+    constant_pool: Arc<[Arc<ConstantPoolEntry>]>,
     pub access_flags: ClassAccessFlags,
-    pub this_class: Cow<'a, str>,
-    pub super_class: Option<Cow<'a, str>>,
-    pub interfaces: Vec<Cow<'a, str>>,
-    pub fields: Vec<FieldInfo<'a>>,
-    pub methods: Vec<MethodInfo<'a>>,
-    pub attributes: Vec<AttributeInfo<'a>>,
+    pub this_class: Arc<str>,
+    pub super_class: Option<Arc<str>>,
+    pub interfaces: Vec<Arc<str>>,
+    pub fields: Vec<FieldInfo>,
+    pub methods: Vec<MethodInfo>,
+    pub attributes: Vec<AttributeInfo>,
 }
 
-impl<'a> ClassFile<'a> {
+impl ClassFile {
     #[must_use]
-    pub fn constantpool_iter(&'a self) -> ConstantPoolIter<'a> {
-        ConstantPoolIter::new(&self.constant_pool)
+    pub fn constantpool_iter(&self) -> ConstantPoolIter {
+        ConstantPoolIter::new(self.constant_pool.clone())
     }
 }
 
@@ -350,14 +349,14 @@ impl ParseOptions {
 }
 
 #[allow(clippy::needless_lifetimes)]
-pub fn parse_class<'a>(raw_bytes: &'a [u8]) -> Result<ClassFile<'a>, ParseError> {
+pub fn parse_class(raw_bytes: & [u8]) -> Result<ClassFile, ParseError> {
     parse_class_with_options(raw_bytes, &ParseOptions::default())
 }
 
-pub fn parse_class_with_options<'a>(
-    raw_bytes: &'a [u8],
+pub fn parse_class_with_options(
+    raw_bytes: & [u8],
     opts: &ParseOptions,
-) -> Result<ClassFile<'a>, ParseError> {
+) -> Result<ClassFile, ParseError> {
     let mut ix = 0;
     if read_u4(raw_bytes, &mut ix)? != 0xCAFE_BABE {
         fail!("Unexpected magic header");
@@ -429,7 +428,7 @@ pub fn parse_class_with_options<'a>(
     let class_file = ClassFile {
         major_version,
         minor_version,
-        constant_pool,
+        constant_pool: Arc::from(constant_pool),
         access_flags,
         this_class,
         super_class,
