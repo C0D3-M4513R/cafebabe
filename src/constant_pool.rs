@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::ops::Deref;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::names::{
     is_array_descriptor, is_binary_name, is_field_descriptor, is_method_descriptor, is_module_name,
@@ -12,14 +12,14 @@ use crate::{read_u1, read_u2, read_u4, read_u8, ParseError};
 #[derive(Debug)]
 pub(crate) enum ConstantPoolRef<'a> {
     Unresolved(u16),
-    Resolved(Rc<ConstantPoolEntry<'a>>),
+    Resolved(Arc<ConstantPoolEntry<'a>>),
 }
 
 impl<'a> ConstantPoolRef<'a> {
     fn resolve(
         &mut self,
         my_index: usize,
-        pool: &[Rc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry<'a>>],
     ) -> Result<(), ParseError> {
         match self {
             ConstantPoolRef::Unresolved(ix) => {
@@ -41,7 +41,7 @@ impl<'a> ConstantPoolRef<'a> {
         }
     }
 
-    fn get(&self) -> &Rc<ConstantPoolEntry<'a>> {
+    fn get(&self) -> &Arc<ConstantPoolEntry<'a>> {
         match self {
             ConstantPoolRef::Unresolved(_) => panic!("Called get on a unresolved ConstantPoolRef"),
             ConstantPoolRef::Resolved(target) => target,
@@ -53,7 +53,7 @@ trait RefCellDeref<'a> {
     fn resolve(
         &self,
         cp_index: usize,
-        pool: &[Rc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry<'a>>],
     ) -> Result<(), ParseError>;
     fn ensure_type(&self, allowed: ConstantPoolEntryTypes) -> Result<(), ParseError>;
 }
@@ -62,7 +62,7 @@ impl<'a> RefCellDeref<'a> for RefCell<ConstantPoolRef<'a>> {
     fn resolve(
         &self,
         cp_index: usize,
-        pool: &[Rc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry<'a>>],
     ) -> Result<(), ParseError> {
         self.borrow_mut().resolve(cp_index, pool)
     }
@@ -144,7 +144,7 @@ impl<'a> ConstantPoolEntry<'a> {
     fn resolve(
         &self,
         my_index: usize,
-        pool: &[Rc<ConstantPoolEntry<'a>>],
+        pool: &[Arc<ConstantPoolEntry<'a>>],
     ) -> Result<(), ParseError> {
         match self {
             // Entry types that do not reference other entries:
@@ -308,7 +308,7 @@ impl<'a> ConstantPoolEntry<'a> {
     fn validate_classinfo_name(&self) -> Result<(), ParseError> {
         let x = self.str()?;
         // Per 4.4.1, classinfo names are allowed to be array descriptors too. This happens in the java 16 modules file.
-        if is_binary_name(x) || is_array_descriptor(x) {
+        if (x.chars().next().map(|chr|chr == 'L').unwrap_or(false) && x.chars().last().map(|chr|chr == ';').unwrap_or(false)) || is_binary_name(x) || is_array_descriptor(x) {
             Ok(())
         } else {
             fail!("Invalid binary name")
@@ -602,7 +602,7 @@ fn read_constant_package<'a>(
     Ok(ConstantPoolEntry::PackageInfo(name_ref))
 }
 
-fn resolve_constant_pool(constant_pool: &[Rc<ConstantPoolEntry>]) -> Result<(), ParseError> {
+fn resolve_constant_pool(constant_pool: &[Arc<ConstantPoolEntry>]) -> Result<(), ParseError> {
     for (i, cp_entry) in constant_pool.iter().enumerate() {
         cp_entry.resolve(i, constant_pool)?;
     }
@@ -610,7 +610,7 @@ fn resolve_constant_pool(constant_pool: &[Rc<ConstantPoolEntry>]) -> Result<(), 
 }
 
 fn validate_constant_pool(
-    constant_pool: &[Rc<ConstantPoolEntry>],
+    constant_pool: &[Arc<ConstantPoolEntry>],
     major_version: u16,
 ) -> Result<(), ParseError> {
     for (i, cp_entry) in constant_pool.iter().enumerate() {
@@ -625,14 +625,14 @@ pub(crate) fn read_constant_pool<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
     major_version: u16,
-) -> Result<Vec<Rc<ConstantPoolEntry<'a>>>, ParseError> {
+) -> Result<Vec<Arc<ConstantPoolEntry<'a>>>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut constant_pool = Vec::with_capacity(count.into());
-    constant_pool.push(Rc::new(ConstantPoolEntry::Zero));
+    constant_pool.push(Arc::new(ConstantPoolEntry::Zero));
     let mut cp_ix = 1;
     while cp_ix < count {
         let constant_type = read_u1(bytes, ix)?;
-        constant_pool.push(Rc::new(match constant_type {
+        constant_pool.push(Arc::new(match constant_type {
             1 => read_constant_utf8(bytes, ix)?,
             3 => read_constant_integer(bytes, ix)?,
             4 => read_constant_float(bytes, ix)?,
@@ -662,7 +662,7 @@ pub(crate) fn read_constant_pool<'a>(
             // long and double types take up two entries in the constant pool,
             // so eat up another index.
             cp_ix += 1;
-            constant_pool.push(Rc::new(ConstantPoolEntry::Unused));
+            constant_pool.push(Arc::new(ConstantPoolEntry::Unused));
         }
     }
     resolve_constant_pool(&constant_pool)?;
@@ -673,8 +673,8 @@ pub(crate) fn read_constant_pool<'a>(
 fn read_cp_ref_any<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
-) -> Result<Rc<ConstantPoolEntry<'a>>, ParseError> {
+    pool: &[Arc<ConstantPoolEntry<'a>>],
+) -> Result<Arc<ConstantPoolEntry<'a>>, ParseError> {
     let cp_index = read_u2(bytes, ix)? as usize;
     if cp_index >= pool.len() {
         fail!(
@@ -688,7 +688,7 @@ fn read_cp_ref_any<'a>(
 pub(crate) fn read_cp_utf8<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Cow<'a, str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -700,7 +700,7 @@ pub(crate) fn read_cp_utf8<'a>(
 pub(crate) fn read_cp_utf8_opt<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Option<Cow<'a, str>>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -713,7 +713,7 @@ pub(crate) fn read_cp_utf8_opt<'a>(
 pub(crate) fn read_cp_classinfo<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Cow<'a, str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -725,7 +725,7 @@ pub(crate) fn read_cp_classinfo<'a>(
 pub(crate) fn read_cp_classinfo_opt<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Option<Cow<'a, str>>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -738,7 +738,7 @@ pub(crate) fn read_cp_classinfo_opt<'a>(
 pub(crate) fn read_cp_moduleinfo<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Cow<'a, str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -750,7 +750,7 @@ pub(crate) fn read_cp_moduleinfo<'a>(
 pub(crate) fn read_cp_packageinfo<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Cow<'a, str>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -768,7 +768,7 @@ pub struct NameAndType<'a> {
 pub(crate) fn read_cp_nameandtype_opt<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Option<NameAndType<'a>>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -794,7 +794,7 @@ pub enum LiteralConstant<'a> {
 pub(crate) fn read_cp_literalconstant<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<LiteralConstant<'a>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -810,7 +810,7 @@ pub(crate) fn read_cp_literalconstant<'a>(
 pub(crate) fn read_cp_integer<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<i32, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -822,7 +822,7 @@ pub(crate) fn read_cp_integer<'a>(
 pub(crate) fn read_cp_float<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<f32, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -834,7 +834,7 @@ pub(crate) fn read_cp_float<'a>(
 pub(crate) fn read_cp_long<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<i64, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -846,7 +846,7 @@ pub(crate) fn read_cp_long<'a>(
 pub(crate) fn read_cp_double<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<f64, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -864,7 +864,7 @@ pub struct MemberRef<'a> {
 pub(crate) fn read_cp_memberref<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
     allowed: ConstantPoolEntryTypes,
 ) -> Result<MemberRef<'a>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
@@ -891,7 +891,7 @@ pub struct InvokeDynamic<'a> {
 pub(crate) fn read_cp_invokedynamic<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<InvokeDynamic<'a>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -920,7 +920,7 @@ pub enum Loadable<'a> {
 
 pub(crate) fn get_cp_loadable<'a>(
     cp_index: usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<Loadable<'a>, ParseError> {
     if cp_index >= pool.len() {
         fail!(
@@ -999,7 +999,7 @@ fn make_method_handle<'a>(
 pub(crate) fn read_cp_methodhandle<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<MethodHandle<'a>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -1019,7 +1019,7 @@ pub enum BootstrapArgument<'a> {
 pub(crate) fn read_cp_bootstrap_argument<'a>(
     bytes: &'a [u8],
     ix: &mut usize,
-    pool: &[Rc<ConstantPoolEntry<'a>>],
+    pool: &[Arc<ConstantPoolEntry<'a>>],
 ) -> Result<BootstrapArgument<'a>, ParseError> {
     let cp_ref = read_cp_ref_any(bytes, ix, pool)?;
     match cp_ref.deref() {
@@ -1068,12 +1068,12 @@ pub enum ConstantPoolItem<'a> {
 }
 
 pub struct ConstantPoolIter<'a> {
-    constant_pool: &'a [Rc<ConstantPoolEntry<'a>>],
+    constant_pool: &'a [Arc<ConstantPoolEntry<'a>>],
     index: usize,
 }
 
 impl<'a> ConstantPoolIter<'a> {
-    pub(crate) fn new(constant_pool: &'a [Rc<ConstantPoolEntry<'a>>]) -> Self {
+    pub(crate) fn new(constant_pool: &'a [Arc<ConstantPoolEntry<'a>>]) -> Self {
         ConstantPoolIter {
             constant_pool,
             index: 0,
