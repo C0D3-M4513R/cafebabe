@@ -27,7 +27,6 @@ pub struct ExceptionTableEntry {
 pub struct CodeData {
     pub max_stack: u16,
     pub max_locals: u16,
-    pub code: Arc<[u8]>,
     pub bytecode: Option<ByteCode>,
     pub exception_table: Arc<[ExceptionTableEntry]>,
     pub attributes: Arc<[AttributeInfo]>,
@@ -406,7 +405,6 @@ fn read_code_data(
     Ok(CodeData {
         max_stack,
         max_locals,
-        code: Arc::from(code),
         bytecode,
         exception_table: Arc::from(exception_table),
         attributes: Arc::from(code_attributes),
