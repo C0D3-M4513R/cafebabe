@@ -624,7 +624,7 @@ pub(crate) fn read_constant_pool(
     bytes: & [u8],
     ix: &mut usize,
     major_version: u16,
-) -> Result<Vec<Arc<ConstantPoolEntry>>, ParseError> {
+) -> Result<Arc<[Arc<ConstantPoolEntry>]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut constant_pool = Vec::with_capacity(count.into());
     constant_pool.push(Arc::new(ConstantPoolEntry::Zero));
@@ -666,7 +666,7 @@ pub(crate) fn read_constant_pool(
     }
     resolve_constant_pool(&constant_pool)?;
     validate_constant_pool(&constant_pool, major_version)?;
-    Ok(constant_pool)
+    Ok(Arc::from(constant_pool))
 }
 
 fn read_cp_ref_any(

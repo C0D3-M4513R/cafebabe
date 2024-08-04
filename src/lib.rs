@@ -81,14 +81,14 @@ fn read_interfaces(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<Arc<str>>, ParseError> {
+) -> Result<Arc<[Arc<str>]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut interfaces = Vec::with_capacity(count.into());
     for i in 0..count {
         interfaces
             .push(read_cp_classinfo(bytes, ix, pool).map_err(|e| err!(e, "interface {}", i))?);
     }
-    Ok(interfaces)
+    Ok(Arc::from(interfaces))
 }
 
 bitflags! {
@@ -146,7 +146,7 @@ fn read_fields(
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
-) -> Result<Vec<FieldInfo>, ParseError> {
+) -> Result<Arc<[FieldInfo]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut fields = Vec::with_capacity(count.into());
     let mut unique_ids: HashSet<(Arc<str>, FieldType)> = HashSet::new();
@@ -177,7 +177,7 @@ fn read_fields(
             attributes: Arc::from(attributes),
         });
     }
-    Ok(fields)
+    Ok(Arc::from(fields))
 }
 
 bitflags! {
@@ -202,7 +202,7 @@ pub struct MethodInfo {
     pub access_flags: MethodAccessFlags,
     pub name: Arc<str>,
     pub descriptor: MethodDescriptor,
-    pub attributes: Vec<AttributeInfo>,
+    pub attributes: Arc<[AttributeInfo]>,
 }
 
 fn read_methods(
@@ -212,7 +212,7 @@ fn read_methods(
     opts: &ParseOptions,
     in_interface: bool,
     major_version: u16,
-) -> Result<Vec<MethodInfo>, ParseError> {
+) -> Result<Arc<[MethodInfo]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut methods = Vec::with_capacity(count.into());
     let mut unique_ids: HashSet<(Arc<str>, MethodDescriptor)> = HashSet::new();
@@ -255,7 +255,7 @@ fn read_methods(
             attributes,
         });
     }
-    Ok(methods)
+    Ok(Arc::from(methods))
 }
 
 bitflags! {
@@ -309,10 +309,10 @@ pub struct ClassFile {
     pub access_flags: ClassAccessFlags,
     pub this_class: Arc<str>,
     pub super_class: Option<Arc<str>>,
-    pub interfaces: Vec<Arc<str>>,
-    pub fields: Vec<FieldInfo>,
-    pub methods: Vec<MethodInfo>,
-    pub attributes: Vec<AttributeInfo>,
+    pub interfaces: Arc<[Arc<str>]>,
+    pub fields: Arc<[FieldInfo]>,
+    pub methods: Arc<[MethodInfo]>,
+    pub attributes: Arc<[AttributeInfo]>,
 }
 
 impl ClassFile {

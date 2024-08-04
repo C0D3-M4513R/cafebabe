@@ -60,12 +60,12 @@ pub enum StackMapEntry {
     },
     Append {
         offset_delta: u16,
-        locals: Vec<VerificationType>,
+        locals: Arc<[VerificationType]>,
     },
     FullFrame {
         offset_delta: u16,
-        locals: Vec<VerificationType>,
-        stack: Vec<VerificationType>,
+        locals: Arc<[VerificationType]>,
+        stack: Arc<[VerificationType]>,
     },
 }
 
@@ -135,7 +135,7 @@ pub enum AnnotationElementValue {
         class_name: Arc<str>,
     },
     AnnotationValue(Annotation),
-    ArrayValue(Vec<AnnotationElementValue>),
+    ArrayValue(Arc<[AnnotationElementValue]>),
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -147,12 +147,12 @@ pub struct AnnotationElement {
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct Annotation {
     pub type_descriptor: FieldType,
-    pub elements: Vec<AnnotationElement>,
+    pub elements: Arc<[AnnotationElement]>,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct ParameterAnnotation {
-    pub annotations: Vec<Annotation>,
+    pub annotations: Arc<[Annotation]>,
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -181,7 +181,7 @@ pub enum TypeAnnotationTarget {
     Throws {
         index: u16,
     },
-    LocalVar(Vec<TypeAnnotationLocalVarTargetEntry>),
+    LocalVar(Arc<[TypeAnnotationLocalVarTargetEntry]>),
     Catch {
         exception_table_index: u16,
     },
@@ -211,14 +211,14 @@ pub struct TypeAnnotationTargetPathEntry {
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct TypeAnnotation {
     pub target_type: TypeAnnotationTarget,
-    pub target_path: Vec<TypeAnnotationTargetPathEntry>,
+    pub target_path: Arc<[TypeAnnotationTargetPathEntry]>,
     pub annotation: Annotation,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct BootstrapMethodEntry {
     pub method: MethodHandle,
-    pub arguments: Vec<BootstrapArgument>,
+    pub arguments: Arc<[BootstrapArgument]>,
 }
 
 bitflags! {
@@ -270,7 +270,7 @@ bitflags! {
 pub struct ModuleExportsEntry {
     pub package_name: Arc<str>,
     pub flags: ModuleExportsFlags,
-    pub exports_to: Vec<Arc<str>>,
+    pub exports_to: Arc<[Arc<str>]>,
 }
 
 bitflags! {
@@ -284,13 +284,13 @@ bitflags! {
 pub struct ModuleOpensEntry {
     pub package_name: Arc<str>,
     pub flags: ModuleOpensFlags,
-    pub opens_to: Vec<Arc<str>>,
+    pub opens_to: Arc<[Arc<str>]>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ModuleProvidesEntry {
     pub service_interface_name: Arc<str>,
-    pub provides_with: Vec<Arc<str>>,
+    pub provides_with: Arc<[Arc<str>]>,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -298,18 +298,18 @@ pub struct ModuleData {
     pub name: Arc<str>,
     pub access_flags: ModuleAccessFlags,
     pub version: Option<Arc<str>>,
-    pub requires: Vec<ModuleRequireEntry>,
-    pub exports: Vec<ModuleExportsEntry>,
-    pub opens: Vec<ModuleOpensEntry>,
-    pub uses: Vec<Arc<str>>,
-    pub provides: Vec<ModuleProvidesEntry>,
+    pub requires: Arc<[ModuleRequireEntry]>,
+    pub exports: Arc<[ModuleExportsEntry]>,
+    pub opens: Arc<[ModuleOpensEntry]>,
+    pub uses: Arc<[Arc<str>]>,
+    pub provides: Arc<[ModuleProvidesEntry]>,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct RecordComponentEntry {
     pub name: Arc<str>,
     pub descriptor: FieldType,
-    pub attributes: Vec<AttributeInfo>,
+    pub attributes: Arc<[AttributeInfo]>,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -317,7 +317,7 @@ pub enum AttributeData {
     ConstantValue(LiteralConstant),
     Code(CodeData),
     StackMapTable(Arc<[StackMapEntry]>),
-    Exceptions(Vec<Arc<str>>),
+    Exceptions(Arc<[Arc<str>]>),
     InnerClasses(Arc<[InnerClassEntry]>),
     EnclosingMethod {
         class_name: Arc<str>,
@@ -327,26 +327,26 @@ pub enum AttributeData {
     Signature(Arc<str>),
     SourceFile(Arc<str>),
     SourceDebugExtension(Arc<str>),
-    LineNumberTable(Vec<LineNumberEntry>),
-    LocalVariableTable(Vec<LocalVariableEntry>),
-    LocalVariableTypeTable(Vec<LocalVariableTypeEntry>),
+    LineNumberTable(Arc<[LineNumberEntry]>),
+    LocalVariableTable(Arc<[LocalVariableEntry]>),
+    LocalVariableTypeTable(Arc<[LocalVariableTypeEntry]>),
     Deprecated,
-    RuntimeVisibleAnnotations(Vec<Annotation>),
-    RuntimeInvisibleAnnotations(Vec<Annotation>),
-    RuntimeVisibleParameterAnnotations(Vec<ParameterAnnotation>),
-    RuntimeInvisibleParameterAnnotations(Vec<ParameterAnnotation>),
-    RuntimeVisibleTypeAnnotations(Vec<TypeAnnotation>),
-    RuntimeInvisibleTypeAnnotations(Vec<TypeAnnotation>),
+    RuntimeVisibleAnnotations(Arc<[Annotation]>),
+    RuntimeInvisibleAnnotations(Arc<[Annotation]>),
+    RuntimeVisibleParameterAnnotations(Arc<[ParameterAnnotation]>),
+    RuntimeInvisibleParameterAnnotations(Arc<[ParameterAnnotation]>),
+    RuntimeVisibleTypeAnnotations(Arc<[TypeAnnotation]>),
+    RuntimeInvisibleTypeAnnotations(Arc<[TypeAnnotation]>),
     AnnotationDefault(AnnotationElementValue),
-    BootstrapMethods(Vec<BootstrapMethodEntry>),
-    MethodParameters(Vec<MethodParameterEntry>),
+    BootstrapMethods(Arc<[BootstrapMethodEntry]>),
+    MethodParameters(Arc<[MethodParameterEntry]>),
     Module(ModuleData),
-    ModulePackages(Vec<Arc<str>>),
+    ModulePackages(Arc<[Arc<str>]>),
     ModuleMainClass(Arc<str>),
     NestHost(Arc<str>),
-    NestMembers(Vec<Arc<str>>),
-    PermittedSubclasses(Vec<Arc<str>>),
-    Record(Vec<RecordComponentEntry>),
+    NestMembers(Arc<[Arc<str>]>),
+    PermittedSubclasses(Arc<[Arc<str>]>),
+    Record(Arc<[RecordComponentEntry]>),
     Other(Arc<[u8]>),
 }
 
@@ -442,7 +442,7 @@ fn read_stackmaptable_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<StackMapEntry>, ParseError> {
+) -> Result<Arc<[StackMapEntry]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut stackmapframes = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -500,7 +500,7 @@ fn read_stackmaptable_data(
                     }
                     StackMapEntry::Append {
                         offset_delta,
-                        locals,
+                        locals: Arc::from(locals),
                     }
                 }
                 255 => {
@@ -521,21 +521,21 @@ fn read_stackmaptable_data(
                     }
                     StackMapEntry::FullFrame {
                         offset_delta,
-                        locals,
-                        stack,
+                        locals: Arc::from(locals),
+                        stack: Arc::from(stack),
                     }
                 }
             };
         stackmapframes.push(entry);
     }
-    Ok(stackmapframes)
+    Ok(Arc::from(stackmapframes))
 }
 
 fn read_exceptions_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<Arc<str>>, ParseError> {
+) -> Result<Arc<[Arc<str>]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut exceptions = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -543,14 +543,14 @@ fn read_exceptions_data(
             read_cp_classinfo(bytes, ix, pool).map_err(|e| err!(e, "exception {}", i))?;
         exceptions.push(exception);
     }
-    Ok(exceptions)
+    Ok(Arc::from(exceptions))
 }
 
 fn read_innerclasses_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<InnerClassEntry>, ParseError> {
+) -> Result<Arc<[InnerClassEntry]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut innerclasses = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -568,10 +568,10 @@ fn read_innerclasses_data(
             access_flags,
         });
     }
-    Ok(innerclasses)
+    Ok(Arc::from(innerclasses))
 }
 
-fn read_linenumber_data(bytes: &[u8], ix: &mut usize) -> Result<Vec<LineNumberEntry>, ParseError> {
+fn read_linenumber_data(bytes: &[u8], ix: &mut usize) -> Result<Arc<[LineNumberEntry]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut linenumbers = Vec::with_capacity(count.into());
     for _i in 0..count {
@@ -582,14 +582,14 @@ fn read_linenumber_data(bytes: &[u8], ix: &mut usize) -> Result<Vec<LineNumberEn
             line_number,
         });
     }
-    Ok(linenumbers)
+    Ok(Arc::from(linenumbers))
 }
 
 fn read_localvariable_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<LocalVariableEntry>, ParseError> {
+) -> Result<Arc<[LocalVariableEntry]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut localvariables = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -611,14 +611,14 @@ fn read_localvariable_data(
             index,
         });
     }
-    Ok(localvariables)
+    Ok(Arc::from(localvariables))
 }
 
 fn read_localvariabletype_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<LocalVariableTypeEntry>, ParseError> {
+) -> Result<Arc<[LocalVariableTypeEntry]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut localvariabletypes = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -639,7 +639,7 @@ fn read_localvariabletype_data(
             index,
         });
     }
-    Ok(localvariabletypes)
+    Ok(Arc::from(localvariabletypes))
 }
 
 fn read_annotation_element_value(
@@ -684,7 +684,7 @@ fn read_annotation_element_value(
                         .map_err(|e| err!(e, "array index {}", i))?,
                 );
             }
-            AnnotationElementValue::ArrayValue(array_values)
+            AnnotationElementValue::ArrayValue(Arc::from(array_values))
         }
         v => fail!("Unrecognized discriminant {}", v),
     };
@@ -709,7 +709,7 @@ fn read_annotation(
     }
     Ok(Annotation {
         type_descriptor,
-        elements,
+        elements: Arc::from(elements),
     })
 }
 
@@ -717,21 +717,21 @@ fn read_annotation_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<Annotation>, ParseError> {
+) -> Result<Arc<[Annotation]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut annotations = Vec::with_capacity(count.into());
     for i in 0..count {
         annotations
             .push(read_annotation(bytes, ix, pool).map_err(|e| err!(e, "annotation {}", i))?);
     }
-    Ok(annotations)
+    Ok(Arc::from(annotations))
 }
 
 fn read_parameter_annotation_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<ParameterAnnotation>, ParseError> {
+) -> Result<Arc<[ParameterAnnotation]>, ParseError> {
     let count = read_u1(bytes, ix)?;
     let mut parameters = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -743,16 +743,16 @@ fn read_parameter_annotation_data(
                     .map_err(|e| err!(e, "annotation {} of parameter {}", j, i))?,
             );
         }
-        parameters.push(ParameterAnnotation { annotations });
+        parameters.push(ParameterAnnotation { annotations: Arc::from(annotations) });
     }
-    Ok(parameters)
+    Ok(Arc::from(parameters))
 }
 
 fn read_type_annotation_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<TypeAnnotation>, ParseError> {
+) -> Result<Arc<[TypeAnnotation]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut annotations = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -787,7 +787,7 @@ fn read_type_annotation_data(
                         index,
                     });
                 }
-                TypeAnnotationTarget::LocalVar(localvars)
+                TypeAnnotationTarget::LocalVar(Arc::from(localvars))
             }
             0x42 => TypeAnnotationTarget::Catch {
                 exception_table_index: read_u2(bytes, ix)?,
@@ -827,18 +827,18 @@ fn read_type_annotation_data(
             read_annotation(bytes, ix, pool).map_err(|e| err!(e, "type annotation {}", i))?;
         annotations.push(TypeAnnotation {
             target_type,
-            target_path,
+            target_path: Arc::from(target_path),
             annotation,
         });
     }
-    Ok(annotations)
+    Ok(Arc::from(annotations))
 }
 
 fn read_bootstrapmethods_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<BootstrapMethodEntry>, ParseError> {
+) -> Result<Arc<[BootstrapMethodEntry]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut bootstrapmethods = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -851,16 +851,16 @@ fn read_bootstrapmethods_data(
                 .map_err(|e| err!(e, "argument {} of bootstrap method {}", j, i))?;
             arguments.push(argument);
         }
-        bootstrapmethods.push(BootstrapMethodEntry { method, arguments });
+        bootstrapmethods.push(BootstrapMethodEntry { method, arguments: Arc::from(arguments) });
     }
-    Ok(bootstrapmethods)
+    Ok(Arc::from(bootstrapmethods))
 }
 
 fn read_methodparameters_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<MethodParameterEntry>, ParseError> {
+) -> Result<Arc<[MethodParameterEntry]>, ParseError> {
     let count = read_u1(bytes, ix)?;
     let mut methodparameters = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -873,7 +873,7 @@ fn read_methodparameters_data(
             .ok_or_else(|| err!(("Invalid access flags found"), ("method parameter {}", i)))?;
         methodparameters.push(MethodParameterEntry { name, access_flags });
     }
-    Ok(methodparameters)
+    Ok(Arc::from(methodparameters))
 }
 
 fn read_module_data(
@@ -916,7 +916,7 @@ fn read_module_data(
         exports.push(ModuleExportsEntry {
             package_name,
             flags,
-            exports_to,
+            exports_to: Arc::from(exports_to),
         });
     }
     let opens_count = read_u2(bytes, ix)?;
@@ -937,7 +937,7 @@ fn read_module_data(
         opens.push(ModuleOpensEntry {
             package_name,
             flags,
-            opens_to,
+            opens_to: Arc::from(opens_to),
         });
     }
     let uses_count = read_u2(bytes, ix)?;
@@ -962,18 +962,18 @@ fn read_module_data(
         }
         provides.push(ModuleProvidesEntry {
             service_interface_name,
-            provides_with,
+            provides_with: Arc::from(provides_with),
         });
     }
     Ok(ModuleData {
         name,
         access_flags,
         version,
-        requires,
-        exports,
-        opens,
-        uses,
-        provides,
+        requires: Arc::from(requires),
+        exports: Arc::from(exports),
+        opens: Arc::from(opens),
+        uses: Arc::from(uses),
+        provides: Arc::from(provides),
     })
 }
 
@@ -981,34 +981,34 @@ fn read_modulepackages_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<Arc<str>>, ParseError> {
+) -> Result<Arc<[Arc<str>]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut packages = Vec::with_capacity(count.into());
     for i in 0..count {
         packages
             .push(read_cp_packageinfo(bytes, ix, pool).map_err(|e| err!(e, "package name {}", i))?);
     }
-    Ok(packages)
+    Ok(Arc::from(packages))
 }
 
 fn read_nestmembers_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<Arc<str>>, ParseError> {
+) -> Result<Arc<[Arc<str>]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut members = Vec::with_capacity(count.into());
     for i in 0..count {
         members.push(read_cp_classinfo(bytes, ix, pool).map_err(|e| err!(e, "class name {}", i))?);
     }
-    Ok(members)
+    Ok(Arc::from(members))
 }
 
 fn read_permitted_subclasses_data(
     bytes: & [u8],
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<Arc<str>>, ParseError> {
+) -> Result<Arc<[Arc<str>]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut permitted_subclasses = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -1016,7 +1016,7 @@ fn read_permitted_subclasses_data(
             read_cp_classinfo(bytes, ix, pool).map_err(|e| err!(e, "permitted subclass {}", i))?;
         permitted_subclasses.push(subclass);
     }
-    Ok(permitted_subclasses)
+    Ok(Arc::from(permitted_subclasses))
 }
 
 fn read_record_data(
@@ -1024,7 +1024,7 @@ fn read_record_data(
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
-) -> Result<Vec<RecordComponentEntry>, ParseError> {
+) -> Result<Arc<[RecordComponentEntry]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut components = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -1043,7 +1043,7 @@ fn read_record_data(
             attributes,
         });
     }
-    Ok(components)
+    Ok(Arc::from(components))
 }
 
 pub(crate) fn read_attributes(
@@ -1051,7 +1051,7 @@ pub(crate) fn read_attributes(
     ix: &mut usize,
     pool: &[Arc<ConstantPoolEntry>],
     opts: &ParseOptions,
-) -> Result<Vec<AttributeInfo>, ParseError> {
+) -> Result<Arc<[AttributeInfo]>, ParseError> {
     let count = read_u2(bytes, ix)?;
     let mut attributes = Vec::with_capacity(count.into());
     for i in 0..count {
@@ -1242,5 +1242,5 @@ pub(crate) fn read_attributes(
         }
         attributes.push(AttributeInfo { name, data });
     }
-    Ok(attributes)
+    Ok(Arc::from(attributes))
 }

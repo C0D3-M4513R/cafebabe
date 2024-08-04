@@ -11,7 +11,7 @@ use crate::ParseError;
 /// MethodDescriptor as described in section 4.3.3 of the [JVM 18 specification](https://docs.oracle.com/javase/specs/jvms/se18/html/jvms-4.html#jvms-4.3.3)
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MethodDescriptor {
-    pub parameters: Vec<FieldType>,
+    pub parameters: Arc<[FieldType]>,
     pub result: ReturnDescriptor,
 }
 
@@ -42,7 +42,7 @@ impl MethodDescriptor {
 
         let result = ReturnDescriptor::parse(chars, &mut chars_idx)?;
 
-        Ok(MethodDescriptor { parameters, result })
+        Ok(MethodDescriptor { parameters: Arc::from(parameters), result })
     }
 }
 
@@ -50,7 +50,7 @@ impl fmt::Display for MethodDescriptor {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_char('(')?;
 
-        for param in &self.parameters {
+        for param in self.parameters.iter() {
             write!(f, "{}", param)?;
         }
 
@@ -272,7 +272,7 @@ mod tests {
         let result = descriptor.result;
 
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Long))
         );
         assert!(parameters.next().is_none());
@@ -303,35 +303,35 @@ mod tests {
         let result = descriptor.result;
 
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Byte))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Char))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Double))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Float))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Int))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Long))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Short))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Base(BaseType::Boolean))
         );
         assert!(parameters.next().is_none());
@@ -347,7 +347,7 @@ mod tests {
         let result = descriptor.result;
 
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Object(Arc::from("java/lang/Object")))
         );
         assert!(parameters.next().is_none());
@@ -363,7 +363,7 @@ mod tests {
         let result = descriptor.result;
 
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Object(Arc::from("java/lang/Object")))
         );
         assert!(parameters.next().is_none());
@@ -379,11 +379,11 @@ mod tests {
         let result = descriptor.result;
 
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Object(Arc::from("java/lang/Object")))
         );
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Ty(Ty::Object(Arc::from("java/lang/String")))
         );
         assert!(parameters.next().is_none());
@@ -414,7 +414,7 @@ mod tests {
         let result = descriptor.result;
 
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Array {
                 dimensions: 1,
                 ty: Ty::Base(BaseType::Long)
@@ -433,7 +433,7 @@ mod tests {
         let result = descriptor.result;
 
         assert_eq!(
-            parameters.next().unwrap(),
+            *parameters.next().unwrap(),
             FieldType::Array {
                 dimensions: 2,
                 ty: Ty::Base(BaseType::Long)
@@ -464,14 +464,14 @@ mod tests {
     #[test]
     fn test_display() {
         let descriptor = MethodDescriptor {
-            parameters: vec![
+            parameters: Arc::new([
                 FieldType::Ty(Ty::Base(BaseType::Long)),
                 FieldType::Ty(Ty::Object(Arc::from("java/lang/Object"))),
                 FieldType::Array {
                     dimensions: 2,
                     ty: Ty::Base(BaseType::Byte),
                 },
-            ],
+            ]),
             result: ReturnDescriptor::Void,
         };
 

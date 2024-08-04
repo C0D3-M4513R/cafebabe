@@ -15,7 +15,7 @@ pub type JumpOffset = i32;
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LookupTable {
     pub default: JumpOffset,
-    pub match_offsets: Vec<(i32, JumpOffset)>,
+    pub match_offsets: Arc<[(i32, JumpOffset)]>,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -23,7 +23,7 @@ pub struct RangeTable {
     pub default: JumpOffset,
     pub low: i32,
     pub high: i32,
-    pub jumps: Vec<JumpOffset>,
+    pub jumps: Arc<[JumpOffset]>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -282,7 +282,7 @@ impl ByteCode {
             Opcode::Lookupswitch(table) => {
                 self.validate_jump(source_offset, table.default)
                     .map_err(|e| err!(e, "default jump offset"))?;
-                for (i, jump) in &table.match_offsets {
+                for (i, jump) in table.match_offsets.iter() {
                     self.validate_jump(source_offset, *jump)
                         .map_err(|e| err!(e, "match offset {}", i))?;
                 }
@@ -312,7 +312,7 @@ impl ByteCode {
 fn read_opcodes(
     code: & [u8],
     pool: &[Arc<ConstantPoolEntry>],
-) -> Result<Vec<(usize, Opcode)>, ParseError> {
+) -> Result<Arc<[(usize, Opcode)]>, ParseError> {
     let mut opcodes = Vec::new();
     let mut ix = 0;
     while ix < code.len() {
@@ -515,7 +515,7 @@ fn read_opcodes(
                     default,
                     low,
                     high,
-                    jumps,
+                    jumps: Arc::from(jumps),
                 })
             }
             0xab => {
@@ -544,7 +544,7 @@ fn read_opcodes(
                 }
                 Opcode::Lookupswitch(LookupTable {
                     default,
-                    match_offsets,
+                    match_offsets: Arc::from(match_offsets),
                 })
             }
             0xac => Opcode::Ireturn,
@@ -695,7 +695,7 @@ fn read_opcodes(
         };
         opcodes.push((opcode_ix, opcode));
     }
-    Ok(opcodes)
+    Ok(Arc::from(opcodes))
 }
 
 #[cfg(test)]

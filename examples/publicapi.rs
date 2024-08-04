@@ -10,7 +10,7 @@ fn main() {
         match cafebabe::parse_class(&bytes) {
             Ok(class) => {
                 println!("{}", class.this_class);
-                for field in class.fields {
+                for field in class.fields.iter() {
                     if field
                         .access_flags
                         .contains(cafebabe::FieldAccessFlags::PRIVATE)
@@ -19,7 +19,7 @@ fn main() {
                     }
                     println!("    {} {}", field.name, field.descriptor);
                 }
-                for method in class.methods {
+                for method in class.methods.iter() {
                     if method
                         .access_flags
                         .contains(cafebabe::MethodAccessFlags::PRIVATE)
